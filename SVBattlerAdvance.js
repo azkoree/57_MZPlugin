@@ -420,9 +420,18 @@ const _Sprite_Actor_startMotion = Sprite_Actor.prototype.startMotion;
 const _Sprite_Actor_forceMotion = Sprite_Actor.prototype.forceMotion;
 const _Sprite_Actor_motionSpeed = Sprite_Actor.prototype.motionSpeed;
 
-// updateBitmap: 跳过 ADSV 角色
+// updateBitmap: 跳过 ADSV 角色，但主动触发 ADSV 图片加载
 Sprite_Actor.prototype.updateBitmap = function() {
-    if (GF.ADSV.isAdsvActive(this)) return;
+    if (GF.ADSV.isAdsvActive(this)) {
+        // 主动触发 ADSV 动作图片加载（一致性考虑，与 Sprite_Enemy 同理）
+        if (!this._adsvMotionName) {
+            const motionName = GF.ADSV.getSpriteMotionName(this);
+            if (motionName) {
+                GF.ADSV.handleMotionChange(this, motionName);
+            }
+        }
+        return;
+    }
     _Sprite_Actor_updateBitmap.call(this);
 };
 
@@ -527,9 +536,26 @@ const _Sprite_Enemy_startMotion = Sprite_Enemy.prototype.startMotion;
 const _Sprite_Enemy_forceMotion = Sprite_Enemy.prototype.forceMotion;
 const _Sprite_Enemy_motionSpeed = Sprite_Enemy.prototype.motionSpeed;
 
-// updateBitmap: 跳过 ADSV 敌人
+// updateBitmap: 跳过 ADSV 敌人，但主动触发 ADSV 图片加载
 Sprite_Enemy.prototype.updateBitmap = function() {
-    if (GF.ADSV.isAdsvActive(this)) return;
+    if (GF.ADSV.isAdsvActive(this)) {
+        // 主动触发 ADSV 动作图片加载
+        // 在 updateBitmap 阶段（比 updateMotion→startMotion 早一帧）启动异步加载，
+        // 从而缩小或消除敌人因图片异步加载而延迟闪现的时间窗口
+        if (!this._adsvMotionName) {
+            const motionName = GF.ADSV.getSpriteMotionName(this);
+            if (motionName) {
+                GF.ADSV.handleMotionChange(this, motionName);
+            } else if (this._enemy) {
+                // _motion 尚未设置（updateMotion 还没执行），直接从 battler 获取待机动作
+                const idleMotion = this._enemy.idleMotion();
+                if (idleMotion) {
+                    GF.ADSV.handleMotionChange(this, idleMotion);
+                }
+            }
+        }
+        return;
+    }
     _Sprite_Enemy_updateBitmap.call(this);
 };
 
