@@ -376,7 +376,12 @@ GF.ADSV.handleMotionChange = function(sprite, motionType) {
 
     // 检查该动作是否有配置
     const config = GF.ADSV.getMotionConfig(battler, motionType);
-    if (!config) return; // 未配置的动作，不动图片
+    if (!config) {
+        // 未配置的动作：清除缓存，后续帧回退到原生渲染
+        sprite._adsvMotionName = null;
+        sprite._battlerName = '';
+        return;
+    }
 
     // 记录运动名
     sprite._adsvMotionName = motionType;
@@ -423,13 +428,19 @@ const _Sprite_Actor_motionSpeed = Sprite_Actor.prototype.motionSpeed;
 // updateBitmap: 跳过 ADSV 角色，但主动触发 ADSV 图片加载
 Sprite_Actor.prototype.updateBitmap = function() {
     if (GF.ADSV.isAdsvActive(this)) {
-        // 主动触发 ADSV 动作图片加载（一致性考虑，与 Sprite_Enemy 同理）
-        if (!this._adsvMotionName) {
-            const motionName = GF.ADSV.getSpriteMotionName(this);
-            if (motionName) {
-                GF.ADSV.handleMotionChange(this, motionName);
+        const motionName = GF.ADSV.getSpriteMotionName(this);
+        if (motionName) {
+            const battler = GF.ADSV.getSpriteBattler(this);
+            if (battler && GF.ADSV.getMotionConfig(battler, motionName)) {
+                // 当前运动有 ADSV 配置：触发 ADSV 图片加载
+                if (!this._adsvMotionName) {
+                    GF.ADSV.handleMotionChange(this, motionName);
+                }
+                return;
             }
         }
+        // 当前运动无 ADSV 配置：回退到原生渲染
+        _Sprite_Actor_updateBitmap.call(this);
         return;
     }
     _Sprite_Actor_updateBitmap.call(this);
@@ -442,13 +453,16 @@ Sprite_Actor.prototype.updateFrame = function() {
         return;
     }
 
+    const config = GF.ADSV.getCurrentMotionConfig(this);
+    if (!config) {
+        _Sprite_Actor_updateFrame.call(this);
+        return;
+    }
+
     Sprite_Battler.prototype.updateFrame.call(this);
 
     const bitmap = this._mainSprite.bitmap;
     if (!bitmap || !bitmap.isReady()) return;
-
-    const config = GF.ADSV.getCurrentMotionConfig(this);
-    if (!config) return;
 
     const framecount = config.framecount;
     const cw = bitmap.width / framecount;
@@ -469,7 +483,10 @@ Sprite_Actor.prototype.updateMotionCount = function() {
     if (!this._motion) return;
 
     const config = GF.ADSV.getCurrentMotionConfig(this);
-    if (!config) return;
+    if (!config) {
+        _Sprite_Actor_updateMotionCount.call(this);
+        return;
+    }
 
     const speed = config.speed || GF.ADSV.defaultSpeed;
     const framecount = config.framecount;
@@ -539,21 +556,30 @@ const _Sprite_Enemy_motionSpeed = Sprite_Enemy.prototype.motionSpeed;
 // updateBitmap: 跳过 ADSV 敌人，但主动触发 ADSV 图片加载
 Sprite_Enemy.prototype.updateBitmap = function() {
     if (GF.ADSV.isAdsvActive(this)) {
-        // 主动触发 ADSV 动作图片加载
-        // 在 updateBitmap 阶段（比 updateMotion→startMotion 早一帧）启动异步加载，
-        // 从而缩小或消除敌人因图片异步加载而延迟闪现的时间窗口
-        if (!this._adsvMotionName) {
-            const motionName = GF.ADSV.getSpriteMotionName(this);
-            if (motionName) {
-                GF.ADSV.handleMotionChange(this, motionName);
-            } else if (this._enemy) {
-                // _motion 尚未设置（updateMotion 还没执行），直接从 battler 获取待机动作
-                const idleMotion = this._enemy.idleMotion();
-                if (idleMotion) {
-                    GF.ADSV.handleMotionChange(this, idleMotion);
+        const motionName = GF.ADSV.getSpriteMotionName(this);
+        if (motionName) {
+            const battler = GF.ADSV.getSpriteBattler(this);
+            if (battler && GF.ADSV.getMotionConfig(battler, motionName)) {
+                // 当前运动有 ADSV 配置：触发 ADSV 图片加载
+                if (!this._adsvMotionName) {
+                    GF.ADSV.handleMotionChange(this, motionName);
+                }
+                return;
+            }
+        } else if (this._enemy) {
+            // _motion 尚未设置（updateMotion 还没执行），直接从 battler 获取待机动作
+            const idleMotion = this._enemy.idleMotion();
+            if (idleMotion) {
+                if (GF.ADSV.getMotionConfig(this._enemy, idleMotion)) {
+                    if (!this._adsvMotionName) {
+                        GF.ADSV.handleMotionChange(this, idleMotion);
+                    }
+                    return;
                 }
             }
         }
+        // 当前运动无 ADSV 配置：回退到原生渲染
+        _Sprite_Enemy_updateBitmap.call(this);
         return;
     }
     _Sprite_Enemy_updateBitmap.call(this);
@@ -566,13 +592,16 @@ Sprite_Enemy.prototype.updateFrame = function() {
         return;
     }
 
+    const config = GF.ADSV.getCurrentMotionConfig(this);
+    if (!config) {
+        _Sprite_Enemy_updateFrame.call(this);
+        return;
+    }
+
     Sprite_Battler.prototype.updateFrame.call(this);
 
     const bitmap = this._mainSprite.bitmap;
     if (!bitmap || !bitmap.isReady()) return;
-
-    const config = GF.ADSV.getCurrentMotionConfig(this);
-    if (!config) return;
 
     const framecount = config.framecount;
     const cw = bitmap.width / framecount;
@@ -598,7 +627,10 @@ Sprite_Enemy.prototype.updateMotionCount = function() {
     if (!this._motion) return;
 
     const config = GF.ADSV.getCurrentMotionConfig(this);
-    if (!config) return;
+    if (!config) {
+        _Sprite_Enemy_updateMotionCount.call(this);
+        return;
+    }
 
     const speed = config.speed || GF.ADSV.defaultSpeed;
     const framecount = config.framecount;
