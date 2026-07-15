@@ -214,6 +214,16 @@ GF.ESM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 技能精通后显示的图标ID，0代表不显示图标。
  * @default 0
  *
+ * @param ShowProgressInSkillList
+ * @text 技能列表显示进度文字
+ * @parent General
+ * @type boolean
+ * @on 显示
+ * @off 关闭
+ * @desc 是否在技能列表中显示精通前的熟练度进度文字（如 50/100）。
+ * 精通图标始终显示，不受此开关影响。
+ * @default true
+ *
  * @param ProgressFormat
  * @text 进度显示格式
  * @parent General
@@ -333,6 +343,7 @@ GF.Param = GF.Param || {};
 
 GF.Param.ESMDefaultCount = Number(GF.Parameters['DefaultCount'] || 100);
 GF.Param.ESMMasteryIcon = Number(GF.Parameters['MasteryIcon'] || 0);
+GF.Param.ESMShowProgressInSkillList = eval(GF.Parameters['ShowProgressInSkillList'] || 'true');
 GF.Param.ESMProgressFormat = String(GF.Parameters['ProgressFormat'] || '%1/%2');
 GF.Param.ESMProgressColor = Number(GF.Parameters['ProgressColor'] || 0);
 GF.Param.ESMInfoPriority = Number(GF.Parameters['InfoPriority'] || 3);
@@ -683,12 +694,12 @@ Window_SkillList.prototype.getMasteryCostText = function (skill, text) {
     }
 
     if (this._actor.isSkillMastered(skill)) {
-        // Mastered: show icon
+        // Mastered: always show icon
         if (masteryIcon > 0) {
             text += '\\i[' + masteryIcon + ']';
         }
-    } else {
-        // Not yet mastered: show progress text
+    } else if (GF.Param.ESMShowProgressInSkillList) {
+        // Not yet mastered: show progress text (if enabled)
         text += '\\c[' + colorId + ']';
         text += this._actor.skillMasteryProgressText(skill);
         text += '\\c[0]';
