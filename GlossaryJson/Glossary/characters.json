@@ -1,0 +1,143 @@
+{
+  "glossaryType": 2,
+  "commandName": "角色图鉴",
+  "useCategory": false,
+  "commandSwitchId": 0,
+  "glossaryHelp": "了解游戏中的主要角色与他们的故事。",
+  "categoryHelp": "",
+  "categories": [],
+  "entries": [
+    {
+      "id": 1,
+      "name": "勇者亚瑟",
+      "iconIndex": 1,
+      "color": "#ff4444",
+      "categoryId": "",
+      "order": 1,
+      "unlockCondition": {
+        "type": "auto",
+        "switchId": 0,
+        "variableId": 0,
+        "variableValue": 1,
+        "script": "",
+        "notifySwitchId": 0,
+        "notifyVariableId": 0
+      },
+      "seenCondition": {
+        "switchId": 0,
+        "setWhenOpened": false
+      },
+      "textColorSwitch": {
+        "switchId": 0,
+        "color": 0
+      },
+      "noCollect": false,
+      "noPageNumber": false,
+      "pages": [
+        {
+          "pageIndex": 1,
+          "description": "本作的主人公，出身于王都郊外的村庄。\\n\\n为了拯救被魔王抓走的公主而踏上旅途。\\n擅长使用单手剑与盾牌的组合，\\n拥有坚韧不拔的意志和强烈的正义感。\\n\\n\\c[18]「无论前路多么艰险，\\n\\c[18]我都不会放弃希望！」",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 0,
+          "showSwitchId": 0,
+          "extraPictures": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "魔法使艾琳",
+      "iconIndex": 2,
+      "color": "#4a90e2",
+      "categoryId": "",
+      "order": 2,
+      "unlockCondition": {
+        "type": "switch",
+        "switchId": 6,
+        "variableId": 0,
+        "variableValue": 1,
+        "script": "",
+        "notifySwitchId": 0,
+        "notifyVariableId": 0
+      },
+      "seenCondition": {
+        "switchId": 0,
+        "setWhenOpened": true
+      },
+      "textColorSwitch": {
+        "switchId": 0,
+        "color": 0
+      },
+      "noCollect": false,
+      "noPageNumber": false,
+      "pages": [
+        {
+          "pageIndex": 1,
+          "description": "王立魔法学院的天才毕业生，\\n能够操控四大元素之力。\\n\\n性格有些冒失，经常在使用魔法时\\n不小心烧掉自己的帽子。\\n\\n\\c[23]「魔法的本质不是力量，\\n\\c[23]而是理解和共鸣。」",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 0,
+          "showSwitchId": 0,
+          "extraPictures": []
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "圣骑士雷恩",
+      "iconIndex": 3,
+      "color": "#f5a623",
+      "categoryId": "",
+      "order": 3,
+      "unlockCondition": {
+        "type": "switch",
+        "switchId": 7,
+        "variableId": 0,
+        "variableValue": 1,
+        "script": "",
+        "notifySwitchId": 0,
+        "notifyVariableId": 0
+      },
+      "seenCondition": {
+        "switchId": 0,
+        "setWhenOpened": true
+      },
+      "textColorSwitch": {
+        "switchId": 0,
+        "color": 0
+      },
+      "noCollect": false,
+      "noPageNumber": false,
+      "pages": [
+        {
+          "pageIndex": 1,
+          "description": "圣殿骑士团最年轻的副团长，\\n身披银色铠甲，手持圣光之锤。\\n\\n虽然外表严肃，但其实非常关心后辈。\\n在战斗中能够为队友提供强大的保护。\\n\\n\\c[29]「守护弱小是我的使命，\\n\\c[29]这不只是骑士的誓言，更是我的信念。」",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 0,
+          "showSwitchId": 0,
+          "extraPictures": []
+        }
+      ]
+    }
+  ]
+}

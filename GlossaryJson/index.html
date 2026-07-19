@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用语词典编辑器 · GF_3_ExternalGlossary</title>
+<link rel="stylesheet" href="css/editor.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- ======== 顶部工具栏 ======== -->
+  <header class="toolbar">
+    <div class="toolbar-brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 1 4 19.5Z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M8 6h8M8 10h8M8 14h5"/></svg>
+      <span class="brand-title">用语词典编辑器</span>
+      <span class="brand-sub">for GF_3_ExternalGlossary</span>
+    </div>
+    <div class="toolbar-actions">
+      <input type="file" id="import-input" accept=".json" multiple hidden>
+      <button class="btn" id="btn-import" title="导入词典 JSON 文件（可多选）">📂 导入</button>
+      <button class="btn btn-primary" id="btn-new-glossary" title="从零创建新词典">📄 新增词典</button>
+      <span class="toolbar-sep"></span>
+      <button class="btn" id="btn-export" title="导出当前选中的词典">📥 导出</button>
+      <button class="btn btn-accent" id="btn-export-all" title="导出全部词典为 ZIP">📦 全部导出 ZIP</button>
+    </div>
+  </header>
+
+  <!-- ======== 主体 ======== -->
+  <div class="main-area">
+
+    <!-- ===== 左侧树 ===== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>词典列表</span>
+        <span class="sidebar-count" id="glossary-count">0</span>
+      </div>
+      <div class="sidebar-tree" id="tree-container">
+        <div class="tree-empty" id="tree-empty">
+          <div class="tree-empty-icon">📖</div>
+          <div>尚未导入词典</div>
+          <div class="tree-empty-hint">点击上方「导入」选择 JSON 文件</div>
+        </div>
+      </div>
+      <div class="sidebar-actions" id="sidebar-actions">
+        <button class="btn btn-primary btn-small" id="btn-sidebar-add">+ 新增条目</button>
+        <button class="btn btn-small btn-sidebar-del" id="btn-sidebar-del">🗑️ 删除</button>
+      </div>
+    </aside>
+
+    <!-- ===== 右侧编辑区 ===== -->
+    <main class="content" id="content-panel">
+
+      <!-- 空状态 -->
+      <section class="content-empty" id="empty-state">
+        <div class="empty-icon">📚</div>
+        <div class="empty-title">欢迎使用用语词典编辑器</div>
+        <div class="empty-desc">导入 JSON 或从零创建新词典</div>
+        <div class="empty-actions">
+          <button class="btn btn-accent" id="btn-empty-import">📂 导入词典文件</button>
+          <button class="btn btn-primary" id="btn-empty-new">📄 新增词典文件</button>
+        </div>
+      </section>
+
+      <!-- 词典信息编辑 -->
+      <section class="content-view hidden" id="dict-view">
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="dict-config">词典配置</button>
+          <button class="tab-btn" data-tab="dict-categories">分类管理</button>
+        </div>
+
+        <!-- 词典配置 -->
+        <div class="tab-pane active" id="dict-config">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>词典 ID</label>
+              <input type="number" id="dict-type" class="input-mono" min="1" readonly>
+            </div>
+            <div class="form-group">
+              <label>显示名称</label>
+              <input type="text" id="dict-name" placeholder="如「怪物图鉴」">
+            </div>
+            <div class="form-group">
+              <label>启用分类</label>
+              <label class="checkbox-wrap"><input type="checkbox" id="dict-use-category"> 是</label>
+            </div>
+            <div class="form-group">
+              <label>菜单开关 ID</label>
+              <input type="number" id="dict-switch" min="0" class="input-mono" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>背景图片</label>
+              <input type="text" id="dict-bgpic" placeholder="文件名（不含路径）">
+            </div>
+            <div class="form-group">
+              <label>背景透明度</label>
+              <input type="number" id="dict-bgopacity" min="0" max="255" class="input-mono" value="180">
+            </div>
+          </div>
+          <div class="form-section">
+            <label>列表帮助文本</label>
+            <textarea id="dict-help" rows="2" placeholder="显示在条目列表上方的帮助文本"></textarea>
+          </div>
+          <div class="form-section">
+            <label>分类帮助文本</label>
+            <textarea id="dict-cat-help" rows="2" placeholder="显示在分类列表上方的帮助文本"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="btn-save-dict">💾 保存词典</button>
+          </div>
+        </div>
+
+        <!-- 分类管理 -->
+        <div class="tab-pane" id="dict-categories">
+          <div class="form-actions" style="padding:0 0 12px">
+            <button class="btn btn-primary" id="btn-add-cat">+ 添加分类</button>
+          </div>
+          <div id="category-list"></div>
+          <p class="field-hint" style="padding:8px 0">分类在词典启用分类时生效，每个条目通过 categoryId 关联到分类。</p>
+        </div>
+      </section>
+
+      <!-- 条目编辑 -->
+      <section class="content-view hidden" id="entry-view">
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="entry-config">配置选项</button>
+          <button class="tab-btn" data-tab="entry-pages">条目内容</button>
+        </div>
+
+        <!-- 条目配置 -->
+        <div class="tab-pane active" id="entry-config">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>条目 ID</label>
+              <input type="number" id="entry-id" class="input-mono" min="1">
+            </div>
+            <div class="form-group">
+              <label>名称</label>
+              <input type="text" id="entry-name" placeholder="条目名称">
+            </div>
+            <div class="form-group">
+              <label>图标索引</label>
+              <input type="number" id="entry-icon" min="0" class="input-mono" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>颜色</label>
+              <div class="color-group">
+                <input type="color" id="entry-color-picker" value="#4a90e2">
+                <input type="text" id="entry-color" class="input-mono" placeholder="#rrggbb" maxlength="7">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>分类</label>
+              <select id="entry-category" class="input-mono"></select>
+            </div>
+            <div class="form-group">
+              <label>排序</label>
+              <input type="number" id="entry-order" min="0" class="input-mono" placeholder="0">
+            </div>
+          </div>
+
+          <!-- 解锁条件 -->
+          <details class="form-details" open>
+            <summary>🔓 解锁条件</summary>
+            <div class="form-grid inset">
+              <div class="form-group">
+                <label>类型</label>
+                <select id="entry-uc-type">
+                  <option value="auto">自动解锁</option>
+                  <option value="switch">开关</option>
+                  <option value="variable">变量</option>
+                  <option value="script">脚本</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>开关 ID</label>
+                <input type="number" id="entry-uc-switch" min="0" class="input-mono" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label>变量 ID</label>
+                <input type="number" id="entry-uc-var" min="0" class="input-mono" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label>变量值</label>
+                <input type="number" id="entry-uc-varval" min="0" class="input-mono" placeholder="1">
+              </div>
+              <div class="form-group" style="grid-column:span 2">
+                <label>脚本条件</label>
+                <input type="text" id="entry-uc-script" placeholder="$gameSwitches.value(1) && ...">
+              </div>
+              <div class="form-group">
+                <label>通知开关</label>
+                <input type="number" id="entry-uc-notif-switch" min="0" class="input-mono" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label>通知变量</label>
+                <input type="number" id="entry-uc-notif-var" min="0" class="input-mono" placeholder="0">
+              </div>
+            </div>
+          </details>
+
+          <!-- 可见条件 -->
+          <details class="form-details">
+            <summary>👁️ 已查看条件</summary>
+            <div class="form-grid inset">
+              <div class="form-group">
+                <label>标记开关 ID</label>
+                <input type="number" id="entry-sc-switch" min="0" class="input-mono" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label>打开时标记</label>
+                <label class="checkbox-wrap"><input type="checkbox" id="entry-sc-setwhen"> 是</label>
+              </div>
+            </div>
+          </details>
+
+          <!-- 文字颜色开关 -->
+          <details class="form-details">
+            <summary>🎨 文字颜色开关</summary>
+            <div class="form-grid inset">
+              <div class="form-group">
+                <label>开关 ID</label>
+                <input type="number" id="entry-tcs-switch" min="0" class="input-mono" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label>颜色索引</label>
+                <input type="number" id="entry-tcs-color" min="0" class="input-mono" placeholder="0">
+              </div>
+            </div>
+          </details>
+
+          <!-- 其他选项 -->
+          <details class="form-details">
+            <summary>⚙️ 其他选项</summary>
+            <div class="form-grid inset" style="grid-template-columns:auto 1fr auto 1fr">
+              <label class="checkbox-wrap"><input type="checkbox" id="entry-no-collect"> 不计入收集率</label>
+              <span></span>
+              <label class="checkbox-wrap"><input type="checkbox" id="entry-no-pagenum"> 不显示页码</label>
+              <span></span>
+            </div>
+          </details>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" id="btn-save-entry">💾 保存条目</button>
+            <button class="btn btn-danger" id="btn-delete-entry">🗑️ 删除条目</button>
+          </div>
+        </div>
+
+        <!-- 条目内容（多页） -->
+        <div class="tab-pane" id="entry-pages">
+          <div class="page-nav">
+            <button class="btn btn-small" id="page-prev">◀ 上一页</button>
+            <span class="page-indicator" id="page-indicator">1 / 1</span>
+            <button class="btn btn-small" id="page-next">下一页 ▶</button>
+            <button class="btn btn-small btn-primary" id="page-add">+ 新增页</button>
+            <button class="btn btn-small btn-danger" id="page-delete" title="删除当前页">🗑️</button>
+          </div>
+
+          <div class="form-section">
+            <label>页面描述文本</label>
+            <div class="ctrl-toolbar" id="ctrl-toolbar">
+              <span class="ctrl-label">插入控制符：</span>
+              <button class="ctrl-btn" data-code="\n" title="换行">⏎ \n</button>
+              <button class="ctrl-btn" data-code="\c[0]" title="文字颜色 \c[n]">🎨 \c[n]</button>
+              <button class="ctrl-btn" data-code="\v[1]" title="变量 \v[n]"># \v[n]</button>
+              <button class="ctrl-btn" data-code="\s[1]" title="开关状态 \s[n]">🔘 \s[n]</button>
+              <button class="ctrl-btn" data-code="\mhp[3]" title="敌人最大HP">❤️ \mhp</button>
+              <button class="ctrl-btn" data-code="\atk[3]" title="敌人攻击力">⚔️ \atk</button>
+              <button class="ctrl-btn" data-code="\def[3]" title="敌人防御力">🛡️ \def</button>
+              <button class="ctrl-btn" data-code="\mag[3]" title="敌人魔法力">✨ \mag</button>
+              <button class="ctrl-btn" data-code="\mdf[3]" title="敌人魔防">🔮 \mdf</button>
+              <button class="ctrl-btn" data-code="\agi[3]" title="敌人敏捷">💨 \agi</button>
+              <button class="ctrl-btn" data-code="\luk[3]" title="敌人运气">🍀 \luk</button>
+              <button class="ctrl-btn" data-code="\exp[5]" title="获得经验">⭐ \exp</button>
+              <button class="ctrl-btn" data-code="\money[5]" title="获得金币">💰 \money</button>
+              <button class="ctrl-btn" data-code="\drop[1]" title="掉落物品">📦 \drop</button>
+              <button class="ctrl-btn" data-code='\data[name]' title="条目属性">📋 \data</button>
+              <button class="ctrl-btn" data-code="\script{code}" title="执行脚本">🧩 \script</button>
+            </div>
+            <textarea id="page-description" spellcheck="false" rows="10"
+              placeholder="在此输入页面文本内容，支持控制符…"></textarea>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label>图片文件名</label>
+              <input type="text" id="page-picture" placeholder="如 monster001">
+            </div>
+            <div class="form-group">
+              <label>图片位置</label>
+              <select id="page-picpos">
+                <option value="top">上方</option>
+                <option value="bottom">下方</option>
+                <option value="text">文本末尾</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>图片对齐</label>
+              <select id="page-picalign">
+                <option value="left">左对齐</option>
+                <option value="center">居中</option>
+                <option value="right">右对齐</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>图片优先级</label>
+              <select id="page-picpri">
+                <option value="top">文字上方</option>
+                <option value="bottom">文字下方</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>缩放比例</label>
+              <input type="number" id="page-scale" min="0.1" max="3" step="0.1" class="input-mono" value="1.0">
+            </div>
+            <div class="form-group">
+              <label>X 偏移</label>
+              <input type="number" id="page-picx" class="input-mono" value="0">
+            </div>
+            <div class="form-group">
+              <label>Y 偏移</label>
+              <input type="number" id="page-picy" class="input-mono" value="0">
+            </div>
+            <div class="form-group">
+              <label>文本 Y 坐标</label>
+              <input type="number" id="page-texty" class="input-mono" value="0">
+            </div>
+            <div class="form-group">
+              <label>敌人 ID</label>
+              <input type="number" id="page-enemy" min="0" class="input-mono" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>显示开关</label>
+              <input type="number" id="page-showsw" min="0" class="input-mono" placeholder="0">
+            </div>
+          </div>
+
+          <!-- 附加图片 -->
+          <details class="form-details">
+            <summary>🖼️ 附加图片</summary>
+            <div class="extra-pics" id="extra-pics">
+              <div class="extra-pic-row header-row">
+                <span>文件名</span><span>X</span><span>Y</span><span></span>
+              </div>
+            </div>
+            <button class="btn btn-small" id="btn-add-extra" style="margin-top:8px">+ 添加附加图片</button>
+          </details>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" id="btn-save-page">💾 保存当前页</button>
+            <button class="btn" id="btn-save-all-pages">💾 保存全部页面</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ======== 状态栏 ======== -->
+  <footer class="status-bar" id="status-bar">就绪</footer>
+</div>
+
+<!-- 新建词典对话框 -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">📄 新建词典</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>词典 ID（glossaryType）</label>
+        <input type="number" id="modal-glossary-type" class="input-mono" min="1" value="1" placeholder="唯一数字编号">
+      </div>
+      <div class="form-group">
+        <label>显示名称</label>
+        <input type="text" id="modal-glossary-name" placeholder="如「怪物图鉴」">
+      </div>
+      <div class="form-group">
+        <label>启用分类</label>
+        <label class="checkbox-wrap"><input type="checkbox" id="modal-use-category"> 是</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btn-modal-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-modal-confirm">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- 拖拽导入覆盖层 -->
+<div class="drop-overlay" id="drop-overlay">
+  <div class="drop-text">📂 松开以导入词典 JSON 文件</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="js/store.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+{
+  "glossaryType": 1,
+  "commandName": "怪物图鉴",
+  "useCategory": true,
+  "commandSwitchId": 0,
+  "glossaryHelp": "收录了游戏中出现的各种怪物信息。",
+  "categoryHelp": "请选择要查看的怪物类别。",
+  "categories": [
+    {
+      "id": "field",
+      "name": "原野怪物",
+      "iconIndex": 123,
+      "order": 1,
+      "condition": {
+        "switchId": 0,
+        "script": ""
+      }
+    },
+    {
+      "id": "dungeon",
+      "name": "地下城怪物",
+      "iconIndex": 124,
+      "order": 2,
+      "condition": {
+        "switchId": 0,
+        "script": ""
+      }
+    },
+    {
+      "id": "boss",
+      "name": "首领怪物",
+      "iconIndex": 125,
+      "order": 3,
+      "condition": {
+        "switchId": 0,
+        "script": ""
+      }
+    }
+  ],
+  "entries": [
+    {
+      "id": 1,
+      "name": "史莱姆",
+      "iconIndex": 136,
+      "color": "#4a90e2",
+      "categoryId": "field",
+      "order": 1,
+      "unlockCondition": {
+        "type": "auto",
+        "switchId": 0,
+        "variableId": 0,
+        "variableValue": 1,
+        "script": "",
+        "notifySwitchId": 0,
+        "notifyVariableId": 0
+      },
+      "seenCondition": {
+        "switchId": 0,
+        "setWhenOpened": false
+      },
+      "textColorSwitch": {
+        "switchId": 0,
+        "color": 0
+      },
+      "noCollect": false,
+      "noPageNumber": false,
+      "pages": [
+        {
+          "pageIndex": 1,
+          "description": "游戏中最常见的魔物，栖息在草原和森林中。\\n身体柔软而有弹性，物理攻击难以造成有效伤害。\\n\\n\\mhp[3]  \\atk[3]  \\def[3]",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 1,
+          "showSwitchId": 0,
+          "extraPictures": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "哥布林",
+      "iconIndex": 137,
+      "color": "#7ed321",
+      "categoryId": "field",
+      "order": 2,
+      "unlockCondition": {
+        "type": "switch",
+        "switchId": 5,
+        "variableId": 0,
+        "variableValue": 1,
+        "script": "",
+        "notifySwitchId": 20,
+        "notifyVariableId": 0
+      },
+      "seenCondition": {
+        "switchId": 0,
+        "setWhenOpened": true
+      },
+      "textColorSwitch": {
+        "switchId": 0,
+        "color": 0
+      },
+      "noCollect": false,
+      "noPageNumber": false,
+      "pages": [
+        {
+          "pageIndex": 1,
+          "description": "成群结队的矮小类人魔物，懂得使用简单的武器和陷阱。\\n\\n\\atk[3]  \\def[3]  \\agi[3]\\n掉落物品：\\drop[1]",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 2,
+          "showSwitchId": 0,
+          "extraPictures": []
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "骷髅战士",
+      "iconIndex": 138,
+      "color": "#cccccc",
+      "categoryId": "dungeon",
+      "order": 1,
+      "unlockCondition": {
+        "type": "variable",
+        "switchId": 0,
+        "variableId": 1,
+        "variableValue": 3,
+        "script": "",
+        "notifySwitchId": 0,
+        "notifyVariableId": 10
+      },
+      "seenCondition": {
+        "switchId": 0,
+        "setWhenOpened": true
+      },
+      "textColorSwitch": {
+        "switchId": 0,
+        "color": 0
+      },
+      "noCollect": false,
+      "noPageNumber": false,
+      "pages": [
+        {
+          "pageIndex": 1,
+          "description": "沉睡在地下城深处的亡灵战士，挥舞着生锈的剑刃。\\n对火属性攻击抗性较弱。\\n\\n\\mhp[4]  \\atk[4]  \\def[4]  \\mag[3]",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 3,
+          "showSwitchId": 0,
+          "extraPictures": []
+        },
+        {
+          "pageIndex": 2,
+          "description": "【战术提示】\\n骷髅战士对\\c[18]火属性\\c[0]攻击特别脆弱。\\n推荐使用火系魔法或火焰附魔武器进行战斗。\\n\\n此外，圣光属性的回复魔法对亡灵系魔物\\n会造成额外伤害。",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 0,
+          "showSwitchId": 0,
+          "extraPictures": []
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "暗影龙",
+      "iconIndex": 139,
+      "color": "#d0021b",
+      "categoryId": "boss",
+      "order": 1,
+      "unlockCondition": {
+        "type": "script",
+        "switchId": 0,
+        "variableId": 0,
+        "variableValue": 1,
+        "script": "$gameSwitches.value(10) && $gameVariables.value(5) >= 10",
+        "notifySwitchId": 30,
+        "notifyVariableId": 0
+      },
+      "seenCondition": {
+        "switchId": 0,
+        "setWhenOpened": true
+      },
+      "textColorSwitch": {
+        "switchId": 10,
+        "color": 2
+      },
+      "noCollect": false,
+      "noPageNumber": false,
+      "pages": [
+        {
+          "pageIndex": 1,
+          "description": "盘踞在龙之巅的远古巨龙，周身笼罩着暗影之力。\\n据说它的吐息能够吞噬一切光芒。\\n\\n\\mhp[5]  \\atk[5]  \\def[4]  \\mag[5]  \\mdf[4]  \\agi[3]",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 4,
+          "showSwitchId": 0,
+          "extraPictures": []
+        },
+        {
+          "pageIndex": 2,
+          "description": "【掉落物品】\\n经验值：\\exp[5]\\n金币：\\money[5]\\n掉落：\\drop[1]",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 4,
+          "showSwitchId": 0,
+          "extraPictures": []
+        },
+        {
+          "pageIndex": 3,
+          "description": "【传说】\\n\\data[name] 在远古时期曾是守护世界的神龙，\\n后来被黑暗力量腐蚀而堕落。\\n\\n据说击败暗影龙需要同时持有「光之剑」\\n和「圣盾艾吉斯」。传说中这两件神器\\n分别藏在\\v[1]和\\v[2]。",
+          "picture": "",
+          "picturePosition": "top",
+          "pictureAlign": "center",
+          "picturePriority": "top",
+          "pictureScale": 1.0,
+          "pictureX": 0,
+          "pictureY": 0,
+          "textPosition": 0,
+          "enemyId": 0,
+          "showSwitchId": 0,
+          "extraPictures": []
+        }
+      ]
+    }
+  ]
+}
