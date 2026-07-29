@@ -1,0 +1,80 @@
+{
+  "menuType": "blacksmith",
+  "menuName": "铁匠铺",
+  "menuIcon": 76,
+  "enableSwitchId": 0,
+  "enableItemCategory": false,
+  "enableWeaponCategory": true,
+  "enableArmorCategory": true,
+  "enableKeyItemCategory": false,
+  "maxMaterials": 4,
+  "enableIncludeEquipItem": false,
+  "maxMakeItem": 999,
+  "menuHelpText": "选择要锻造的武器或防具。",
+  "categories": [
+    {
+      "id": "sword",
+      "name": "剑类",
+      "iconIndex": 76,
+      "order": 1
+    },
+    {
+      "id": "armor",
+      "name": "护甲",
+      "iconIndex": 81,
+      "order": 2
+    }
+  ],
+  "recipes": [
+    {
+      "id": 1,
+      "categoryId": "sword",
+      "name": "铁剑锻造",
+      "description": "用铁锭铸造一把锋利的铁剑。",
+      "iconIndex": 76,
+      "material": [
+        {
+          "type": "item",
+          "id": 1,
+          "count": 3
+        },
+        {
+          "type": "item",
+          "id": 2,
+          "count": 1
+        },
+        {
+          "type": "item",
+          "id": 4,
+          "count": 1
+        }
+      ],
+      "price": 100,
+      "target": {
+        "type": "weapon",
+        "id": 1
+      },
+      "unlockSwitchId": 0
+    },
+    {
+      "id": 2,
+      "categoryId": "armor",
+      "name": "皮甲制作",
+      "description": "用兽皮缝制一件轻便的皮甲。",
+      "iconIndex": 81,
+      "material": [
+        {
+          "type": "item",
+          "id": 3,
+          "count": 2
+        }
+      ],
+      "price": 200,
+      "target": {
+        "type": "armor",
+        "id": 1
+      },
+      "unlockSwitchId": 0
+    }
+  ]
+}
