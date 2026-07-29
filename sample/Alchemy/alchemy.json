@@ -1,0 +1,47 @@
+{
+  "menuType": "alchemy",
+  "menuName": "炼金铺",
+  "menuIcon": 165,
+  "enableSwitchId": 0,
+  "enableItemCategory": true,
+  "enableWeaponCategory": false,
+  "enableArmorCategory": false,
+  "enableKeyItemCategory": false,
+  "maxMaterials": 3,
+  "enableIncludeEquipItem": false,
+  "maxMakeItem": 99,
+  "menuHelpText": "将各种材料提炼为神奇的药剂。",
+  "recipes": [
+    {
+      "id": 1,
+      "name": "回复药水炼制",
+      "description": "用药草炼制回复药水。",
+      "iconIndex": 164,
+      "material": [
+        { "type": "item", "id": 1, "count": 2 }
+      ],
+      "price": 50,
+      "target": { "type": "item", "id": 2 },
+      "unlockSwitchId": 0
+    },
+    {
+      "id": 2,
+      "name": "魔力药剂炼制",
+      "description": "用魔法精华和药草炼制恢复内力的药剂。",
+      "iconIndex": 164,
+      "material": [
+        { "type": "item", "id": 2, "count": 1 },
+        { "type": "item", "id": 3, "count": 1 }
+      ],
+      "price": 100,
+      "target": { "type": "item", "id": 4 },
+      "unlockSwitchId": 0,
+      "se": {
+        "name": "Heal3",
+        "volume": 85,
+        "pitch": 110,
+        "pan": 0
+      }
+    }
+  ]
+}
