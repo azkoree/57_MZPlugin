@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// GF_3_ExternalGlossary.js
+// 57_GF_3_ExternalGlossary.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_3_ExternalGlossary = true;
+Imported['57_GF_3_ExternalGlossary'] = true;
 
 var GF = GF || {};
 GF.GGM = GF.GGM || {};
@@ -65,7 +65,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *     可以在主菜单设置进入用语词典菜单的按钮
  *     关键字：glossary
  *     按钮名称：return '图鉴';
- *     是否显示按钮：return Imported.GF_3_ExternalGlossary;
+ *     是否显示按钮：return Imported['57_GF_3_ExternalGlossary'];
  *     是否允许激活按钮：return true;
  *     按钮激活后效果：运行代码
  *     按钮激活运行代码：SceneManager.push(Scene_GFGlossary);

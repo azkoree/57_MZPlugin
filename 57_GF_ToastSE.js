@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// GF_ToastSE.js
+// 57_GF_ToastSE.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_ToastSE = true;
+Imported['57_GF_ToastSE'] = true;
 
 var GF = GF || {};
 GF.TSE = GF.TSE || {};
@@ -21,7 +21,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @base GF_3_ToastSystem
  * @orderAfter GF_3_QuestSystem
  * @orderAfter GF_3_IndependEquipSystem
- * @orderAfter GF_EasySkillMastery
+ * @orderAfter 57_GF_EasySkillMastery
  *
  * @help
  * ============================================================================
@@ -368,7 +368,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 //=============================================================================
 
 if (!Imported.GF_3_ToastSystem) {
-    alert("错误:未找到前置插件 GF_3_ToastSystem。\n请确保已安装并启用 GF_3_ToastSystem 插件,并将其放置在 GF_ToastSE 插件之前。");
+    alert("错误:未找到前置插件 GF_3_ToastSystem。\n请确保已安装并启用 GF_3_ToastSystem 插件,并将其放置在 57_GF_ToastSE 插件之前。");
 }
 
 //=============================================================================
@@ -701,7 +701,7 @@ if (Imported.GF_EasySkillMastery) {
 
     // > 战斗场景 — 批次音效钩子
     //   GF_EasySkillMastery 为 Scene_Battle 添加了完整的 toast 渲染管线，
-    //   但 GF_ToastSE 原本只监听 Scene_Map / Scene_MenuBase。
+    //   但 57_GF_ToastSE 原本只监听 Scene_Map / Scene_MenuBase。
     //   这里给 Scene_Battle 也加上批次音效刷新，确保战斗中精通通知的音效实时播放。
     GF.TSE.Scene_Battle_update = Scene_Battle.prototype.update;
     Scene_Battle.prototype.update = function () {

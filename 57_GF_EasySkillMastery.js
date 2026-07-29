@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// GF_EasySkillMastery.js
+// 57_GF_EasySkillMastery.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_EasySkillMastery = true;
+Imported['57_GF_EasySkillMastery'] = true;
 
 var GF = GF || {};
 GF.ESM = GF.ESM || {};
@@ -325,7 +325,7 @@ GF.ESM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 //=============================================================================
 
 if (!Imported.GF_2_CoreOfSkillElement) {
-    alert("错误:未找到前置插件 GF_2_CoreOfSkillElement。\n请确保已安装并启用 GF_2_CoreOfSkillElement 插件,并将其放置在 GF_EasySkillMastery 插件之前。");
+    alert("错误:未找到前置插件 GF_2_CoreOfSkillElement。\n请确保已安装并启用 GF_2_CoreOfSkillElement 插件,并将其放置在 57_GF_EasySkillMastery 插件之前。");
 } else if (GF.COSE.version < 1.05) {
     alert("错误:前置插件 GF_2_CoreOfSkillElement 版本过低。\n请升级至最新版本。");
 }

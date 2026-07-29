@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GF_3_AlchemySystem — 合成数据编辑工具</title>
+<style>
+/* ===== 全局（浅色主题） ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #1a1a2e; background: #f0f2f5; }
+input, textarea, select, button { font: inherit; color: inherit; }
+
+/* ===== 布局 ===== */
+.app { display: flex; height: 100vh; }
+.sidebar { width: 380px; min-width: 320px; background: #e4e7ed; border-right: 1px solid #caced6; display: flex; flex-direction: column; overflow: hidden; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f0f2f5; }
+
+/* ===== 头部工具栏 ===== */
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #d6dbe5; border-bottom: 1px solid #c0c5ce; flex-shrink: 0; }
+.toolbar h1 { font-size: 16px; font-weight: 600; margin-right: auto; color: #1a1a2e; }
+.toolbar .btn { padding: 6px 14px; border: 1px solid #b0b8c4; border-radius: 4px; background: #f5f7fa; color: #1a1a2e; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.toolbar .btn:hover { background: #e8ecf2; }
+.toolbar .btn-primary { background: #4a8acc; border-color: #3a7abc; color: #fff; }
+.toolbar .btn-primary:hover { background: #3a7abc; }
+.toolbar .btn-danger { background: #c05050; border-color: #a04040; color: #fff; }
+.toolbar .btn-danger:hover { background: #a04040; }
+.toolbar .file-label { padding: 6px 14px; border: 1px solid #b0b8c4; border-radius: 4px; background: #f5f7fa; cursor: pointer; font-size: 13px; }
+.toolbar .file-label:hover { background: #e8ecf2; }
+.toolbar input[type="file"] { display: none; }
+
+/* ===== 左侧面板 ===== */
+.sidebar-scroll { flex: 1; overflow-y: auto; padding: 0; }
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: #e4e7ed; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: #b0b8c4; border-radius: 3px; }
+
+/* 侧边栏折叠区块 */
+.section { border-bottom: 1px solid #caced6; }
+.section-header { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #dadfe8; cursor: pointer; user-select: none; font-weight: 600; font-size: 13px; }
+.section-header:hover { background: #ccd2dc; }
+.section-header .arrow { transition: transform .2s; font-size: 10px; }
+.section-header .arrow.collapsed { transform: rotate(-90deg); }
+.section-body { padding: 10px 14px; }
+.section-body.hidden { display: none; }
+
+/* ===== 表单字段（浅色） ===== */
+.field { margin-bottom: 8px; }
+.field label { display: block; font-size: 12px; color: #5a6a7a; margin-bottom: 2px; font-weight: 500; }
+.field .hint { font-size: 11px; color: #8a9aaa; font-weight: 400; margin-left: 4px; }
+.field input, .field textarea, .field select { width: 100%; padding: 5px 8px; border: 1px solid #caced6; border-radius: 3px; background: #f8f9fa; color: #1a1a2e; }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: #4a8acc; outline: none; box-shadow: 0 0 0 2px rgba(74,138,204,0.15); }
+.field textarea { resize: vertical; min-height: 36px; }
+.field-row { display: flex; gap: 8px; }
+.field-row .field { flex: 1; }
+.field-inline { display: flex; align-items: center; gap: 6px; }
+.field-inline label { margin-bottom: 0; font-weight: 400; }
+.field-inline input[type="checkbox"] { width: auto; }
+.field-inline input[type="number"] { width: 70px; padding: 3px 6px; }
+
+/* ===== 分类列表 ===== */
+.cat-list { margin-bottom: 8px; }
+.cat-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: #f8f9fa; border: 1px solid #caced6; border-radius: 3px; margin-bottom: 4px; }
+.cat-item input { flex: 1; padding: 3px 6px; border: none; background: transparent; }
+.cat-item input:focus { outline: none; background: #fff; }
+.cat-item .del-cat { cursor: pointer; color: #c05050; font-weight: bold; padding: 0 4px; }
+.cat-item .del-cat:hover { color: #e03030; }
+
+/* ===== 配方列表 ===== */
+.recipe-list { }
+.recipe-item { display: flex; align-items: center; gap: 6px; padding: 8px 14px; cursor: pointer; border-left: 3px solid transparent; transition: background .15s; }
+.recipe-item:hover { background: #dce1ea; }
+.recipe-item.active { background: #c8d4e6; border-left-color: #4a8acc; }
+.recipe-item .r-icon { width: 24px; height: 24px; background: #dce1ea; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.recipe-item .r-info { flex: 1; min-width: 0; }
+.recipe-item .r-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1a1a2e; }
+.recipe-item .r-desc { font-size: 11px; color: #6a7a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recipe-item .r-del { cursor: pointer; color: #c05050; padding: 2px 6px; font-size: 16px; opacity: 0.5; }
+.recipe-item .r-del:hover { opacity: 1; color: #e03030; }
+
+/* ===== 右侧 ===== */
+.main-scroll { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.main-scroll::-webkit-scrollbar { width: 6px; }
+.main-scroll::-webkit-scrollbar-track { background: #f0f2f5; }
+.main-scroll::-webkit-scrollbar-thumb { background: #b0b8c4; border-radius: 3px; }
+
+/* ===== 空状态 ===== */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #8a9aaa; padding: 20px; }
+.empty-state .big-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state p { font-size: 15px; }
+.empty-state .btn-big { display: inline-flex; align-items: center; gap: 8px; padding: 12px 32px; border: 2px dashed #b0b8c4; border-radius: 8px; background: #f8f9fa; cursor: pointer; font-size: 16px; color: #3a5a7a; margin: 6px; transition: all .15s; }
+.empty-state .btn-big:hover { border-color: #4a8acc; background: #e8f0f8; color: #2a4a6a; }
+.empty-state .btn-big-primary { border-style: solid; border-color: #4a8acc; background: #e8f0f8; color: #2a4a6a; }
+.empty-state .btn-big-primary:hover { background: #d0e2f5; border-color: #3a7abc; }
+
+/* ===== 配方编辑区 ===== */
+.editor-section { margin-bottom: 20px; }
+.editor-section h3 { font-size: 14px; font-weight: 600; color: #3a4a5a; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #d0d4da; }
+
+/* 材料列表 */
+.mat-list { }
+.mat-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f8f9fa; border: 1px solid #caced6; border-radius: 4px; margin-bottom: 6px; }
+.mat-item select { width: 100px; padding: 3px 6px; border: 1px solid #caced6; border-radius: 3px; background: #f8f9fa; }
+.mat-item input[type="number"] { width: 60px; padding: 3px 6px; border: 1px solid #caced6; border-radius: 3px; background: #f8f9fa; }
+.mat-item .mat-label { flex: 1; font-size: 12px; color: #6a7a8a; }
+.mat-item .del-mat { cursor: pointer; color: #c05050; font-weight: bold; padding: 0 6px; }
+.mat-item .del-mat:hover { color: #e03030; }
+
+/* SE覆盖 */
+.se-group { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: #f8f9fa; border: 1px solid #caced6; border-radius: 4px; margin-top: 6px; }
+.se-group .field { flex: 1; min-width: 80px; margin-bottom: 0; }
+.se-group .field input { padding: 3px 6px; }
+
+/* 分类管理区 */
+.cat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cat-header span { font-size: 12px; color: #6a7a8a; }
+.cat-header .btn-sm { padding: 2px 10px; border: 1px solid #3a8a5a; border-radius: 3px; background: #e8f5ee; cursor: pointer; font-size: 12px; color: #1a5a3a; }
+.cat-header .btn-sm:hover { background: #d0ebe0; }
+
+/* 按钮系列 */
+.actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.actions .btn { padding: 6px 16px; border: 1px solid #b0b8c4; border-radius: 4px; background: #f5f7fa; cursor: pointer; font-size: 13px; }
+.actions .btn:hover { background: #e8ecf2; }
+.actions .btn-add { background: #e8f5ee; border-color: #3a8a5a; color: #1a5a3a; }
+.actions .btn-add:hover { background: #d0ebe0; }
+.actions .btn-del { background: #fce8e8; border-color: #c06666; color: #8a3030; }
+.actions .btn-del:hover { background: #f5d0d0; }
+
+/* Toast 提示 */
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 6px; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.toast.show { opacity: 1; }
+.toast-info { background: #e0ecf5; border: 1px solid #7aaacc; color: #1a4a6a; }
+.toast-error { background: #fce0e0; border: 1px solid #cc7a7a; color: #6a1a1a; }
+.toast-success { background: #e0f5ea; border: 1px solid #7acc9a; color: #1a5a3a; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 900px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; min-width: unset; max-height: 50vh; border-right: none; border-bottom: 1px solid #caced6; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+    <!-- ======================== 左侧面板 ======================== -->
+    <div class="sidebar">
+        <div class="toolbar">
+            <h1>📦 合成数据编辑</h1>
+            <button class="btn" onclick="openFilePicker()">📂 打开</button>
+            <label class="file-label" for="fileInput" title="传统文件选择（降级方案）" style="font-size:11px;padding:4px 8px;">⬆</label>
+            <input type="file" id="fileInput" accept=".json">
+            <button class="btn btn-primary" onclick="saveFile()">💾 保存</button>
+            <button class="btn" onclick="saveFileAs()">📄 另存为</button>
+        </div>
+        <div class="sidebar-scroll" id="sidebarScroll">
+            <!-- 空状态提示 -->
+            <div class="empty-state" id="emptyHint" style="padding: 40px 20px;">
+                <div class="big-icon">📂</div>
+                <p>点击「打开」加载一个 JSON 文件</p>
+                <p style="font-size:12px;color:#8a9aaa;margin-top:8px;">
+                或拖拽文件到此处
+                </p>
+            </div>
+
+            <!-- 菜单总体配置 -->
+            <div class="section" id="menuConfigSection" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="arrow">▼</span> 菜单总体配置
+                </div>
+                <div class="section-body">
+                    <div class="field">
+                        <label>菜单类型标识 (menuType) <span class="hint">唯一标识，用于插件指令调用，如 "blacksmith"</span></label>
+                        <input type="text" id="f_menuType" onchange="onMenuChange()">
+                    </div>
+                    <div class="field">
+                        <label>菜单显示名称 (menuName) <span class="hint">如 "铁匠铺"</span></label>
+                        <input type="text" id="f_menuName" onchange="onMenuChange()">
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>菜单图标索引 (menuIcon) <span class="hint">图标编号，0=不使用</span></label>
+                            <input type="number" id="f_menuIcon" min="0" onchange="onMenuChange()">
+                        </div>
+                        <div class="field">
+                            <label>启用开关ID (enableSwitchId) <span class="hint">0=始终可用</span></label>
+                            <input type="number" id="f_enableSwitchId" min="0" onchange="onMenuChange()">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>自动分类启用</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+                            <label class="field-inline"><input type="checkbox" id="f_enableItemCategory" onchange="onMenuChange()"> 道具</label>
+                            <label class="field-inline"><input type="checkbox" id="f_enableWeaponCategory" onchange="onMenuChange()"> 武器</label>
+                            <label class="field-inline"><input type="checkbox" id="f_enableArmorCategory" onchange="onMenuChange()"> 防具</label>
+                            <label class="field-inline"><input type="checkbox" id="f_enableKeyItemCategory" onchange="onMenuChange()"> 贵重品</label>
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>最大材料种类 (maxMaterials)</label>
+                            <input type="number" id="f_maxMaterials" min="1" onchange="onMenuChange()">
+                        </div>
+                        <div class="field">
+                            <label>最大合成数 (maxMakeItem)</label>
+                            <input type="number" id="f_maxMakeItem" min="1" onchange="onMenuChange()">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="field-inline"><input type="checkbox" id="f_enableIncludeEquipItem" onchange="onMenuChange()"> 允许消耗已装备物品 (enableIncludeEquipItem)</label>
+                    </div>
+                    <div class="field">
+                        <label>帮助文本 (menuHelpText)</label>
+                        <textarea id="f_menuHelpText" rows="2" onchange="onMenuChange()"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自定义分类 -->
+            <div class="section" id="catSection" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="arrow">▼</span> 自定义分类 (categories)
+                </div>
+                <div class="section-body">
+                    <div class="cat-header">
+                        <span>自定义分类覆盖自动分类，不填则按产出类型自动归类。</span>
+                        <button class="btn-sm" onclick="addCategory()">+ 添加分类</button>
+                    </div>
+                    <div class="cat-list" id="catList"></div>
+                </div>
+            </div>
+
+            <!-- 配方列表 -->
+            <div class="section" id="recipeSection" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)" style="background:#d2dae6;">
+                    <span class="arrow">▼</span> 配方列表
+                    <span style="margin-left:auto;font-weight:400;font-size:12px;color:#6a7a8a;" id="recipeCount">(0)</span>
+                </div>
+                <div class="section-body" style="padding:0;">
+                    <div style="padding:8px 14px;border-bottom:1px solid #caced6;">
+                        <button class="btn btn-add" style="width:100%;padding:6px;" onclick="addRecipe()">+ 添加配方</button>
+                    </div>
+                    <div class="recipe-list" id="recipeList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== 右侧面板 ======================== -->
+    <div class="main">
+        <div class="main-scroll" id="mainScroll">
+            <!-- 无数据时的起始页 -->
+            <div class="empty-state" id="dataEmpty" style="display:none;">
+                <div class="big-icon">📦</div>
+                <p style="font-size:18px;font-weight:600;color:#5a6a7a;margin-bottom:16px;">合成数据编辑工具</p>
+                <div>
+                    <button class="btn-big btn-big-primary" onclick="newBlankMenu()">➕ 新建空白菜单</button>
+                    <button class="btn-big" onclick="openFilePicker()">📂 导入现有 JSON</button>
+                </div>
+                <p style="margin-top:20px;font-size:13px;color:#9aaaba;">新建后会从空白菜单开始编辑，导入可读取现有 dataEx/Alchemy/ 下的 JSON 文件</p>
+            </div>
+
+            <!-- 有数据但未选配方时 -->
+            <div class="empty-state" id="editorEmpty" style="display:none;">
+                <div class="big-icon">📋</div>
+                <p>选择一个配方进行编辑</p>
+            </div>
+
+            <!-- 配方编辑器 -->
+            <div id="recipeEditor" style="display:none;">
+                <div class="editor-section">
+                    <h3>📝 配方基本信息</h3>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>配方ID (id) <span class="hint">数字，文件内唯一</span></label>
+                            <input type="number" id="e_id" min="1" onchange="onEditChange()">
+                        </div>
+                        <div class="field">
+                            <label>分类ID (categoryId) <span class="hint">对应自定义分类 id，不填则按产出类型自动归类</span></label>
+                            <input type="text" id="e_categoryId" onchange="onEditChange()" placeholder="如 sword">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>配方名称 (name) <span class="hint">不填则用产出品名称</span></label>
+                        <input type="text" id="e_name" onchange="onEditChange()" placeholder="如 铁剑锻造">
+                    </div>
+                    <div class="field">
+                        <label>配方描述 (description)</label>
+                        <textarea id="e_description" rows="2" onchange="onEditChange()" placeholder="配方的说明文字"></textarea>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>图标索引 (iconIndex) <span class="hint">0=使用产出品图标</span></label>
+                            <input type="number" id="e_iconIndex" min="0" onchange="onEditChange()">
+                        </div>
+                        <div class="field">
+                            <label>合成费用 (price) <span class="hint">所需金币，0=免费</span></label>
+                            <input type="number" id="e_price" min="0" onchange="onEditChange()">
+                        </div>
+                        <div class="field">
+                            <label>解锁开关 (unlockSwitchId) <span class="hint">0=默认可用</span></label>
+                            <input type="number" id="e_unlockSwitchId" min="0" onchange="onEditChange()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 产出物品 -->
+                <div class="editor-section">
+                    <h3>🎯 产出物品 (target)</h3>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>产出类型</label>
+                            <select id="e_targetType" onchange="onEditChange()">
+                                <option value="item">道具 (item)</option>
+                                <option value="weapon">武器 (weapon)</option>
+                                <option value="armor">防具 (armor)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>产出物品ID</label>
+                            <input type="number" id="e_targetId" min="1" onchange="onEditChange()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 材料列表 -->
+                <div class="editor-section">
+                    <h3>🧱 材料 (material)</h3>
+                    <div class="mat-list" id="e_matList"></div>
+                    <button class="btn btn-add" style="margin-top:4px;" onclick="addMaterial()">+ 添加材料</button>
+                </div>
+
+                <!-- 合成音效覆盖 -->
+                <div class="editor-section">
+                    <h3>🔊 合成音效覆盖 (se) <span class="hint" style="font-weight:400;">不填则使用插件参数的全局设置</span></h3>
+                    <label class="field-inline" style="margin-bottom:8px;">
+                        <input type="checkbox" id="e_seEnabled" onchange="onSEEnableChange()"> 启用音效覆盖
+                    </label>
+                    <div id="e_seGroup" class="se-group" style="display:none;">
+                        <div class="field">
+                            <label>SE文件名</label>
+                            <input type="text" id="e_seName" onchange="onEditChange()" placeholder="如 Heal5">
+                        </div>
+                        <div class="field">
+                            <label>音量 (0-100)</label>
+                            <input type="number" id="e_seVolume" min="0" max="100" onchange="onEditChange()">
+                        </div>
+                        <div class="field">
+                            <label>音高 (50-150)</label>
+                            <input type="number" id="e_sePitch" min="50" max="150" onchange="onEditChange()">
+                        </div>
+                        <div class="field">
+                            <label>声相 (-100~100)</label>
+                            <input type="number" id="e_sePan" min="-100" max="100" onchange="onEditChange()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions" style="padding-bottom:40px;">
+                    <button class="btn btn-del" onclick="deleteCurrentRecipe()">🗑 删除此配方</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================================
+// 全局状态
+// ============================================================================
+let data = null;             // 当前加载的完整 JSON 数据
+let selectedRecipeId = null; // 当前选中配方的 ID
+let dirty = false;           // 是否有未保存的修改
+let currentFileName = '';    // 当前文件名
+let recipeIdCounter = 100;   // 新增配方的临时 id 计数器
+
+// ---- File System Access API 文件句柄 ----
+// 通过 modern API 打开文件后会存下，保存时直接写回（无需再选路径）
+let fileHandle = null;
+
+// ============================================================================
+// 工具函数
+// ============================================================================
+function $(id) { return document.getElementById(id); }
+
+function toast(msg, type = 'info') {
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast toast-' + type + ' show';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function markDirty() { dirty = true; }
+
+function toggleSection(headerEl) {
+    const body = headerEl.nextElementSibling;
+    const arrow = headerEl.querySelector('.arrow');
+    body.classList.toggle('hidden');
+    arrow.classList.toggle('collapsed');
+}
+
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ============================================================================
+// 数据标准化
+// ============================================================================
+function normalizeData(d) {
+    d.menuType = d.menuType || '';
+    d.menuName = d.menuName || '';
+    d.menuIcon = d.menuIcon || 0;
+    d.enableSwitchId = d.enableSwitchId || 0;
+    d.enableItemCategory = d.enableItemCategory !== false;
+    d.enableWeaponCategory = d.enableWeaponCategory !== false;
+    d.enableArmorCategory = d.enableArmorCategory !== false;
+    d.enableKeyItemCategory = !!d.enableKeyItemCategory;
+    d.maxMaterials = d.maxMaterials || 3;
+    d.enableIncludeEquipItem = !!d.enableIncludeEquipItem;
+    d.maxMakeItem = d.maxMakeItem || 999;
+    d.menuHelpText = d.menuHelpText || '';
+    d.categories = d.categories || [];
+    d.recipes = d.recipes || [];
+    for (let i = 0; i < d.recipes.length; i++) {
+        const r = d.recipes[i];
+        r.id = r.id || (i + 1);
+        r.material = r.material || [];
+        r.price = r.price || 0;
+        r.unlockSwitchId = r.unlockSwitchId || 0;
+        r.name = r.name || '';
+        r.description = r.description || '';
+        r.iconIndex = r.iconIndex || 0;
+        r.categoryId = r.categoryId || '';
+        if (!r.target) r.target = { type: 'item', id: 1 };
+        r.target.type = r.target.type || 'item';
+        r.target.id = r.target.id || 1;
+        for (let j = 0; j < r.material.length; j++) {
+            const m = r.material[j];
+            m.type = m.type || 'item';
+            m.id = m.id || 1;
+            m.count = m.count || 1;
+        }
+    }
+    for (let i = 0; i < d.categories.length; i++) {
+        const c = d.categories[i];
+        c.id = c.id || 'cat_' + i;
+        c.name = c.name || '';
+        c.iconIndex = c.iconIndex || 0;
+        c.order = c.order || 0;
+        if (!c.condition) c.condition = { switchId: 0, script: '' };
+        c.condition.switchId = c.condition.switchId || 0;
+        c.condition.script = c.condition.script || '';
+    }
+    // 自动同步：检测配方中使用的 categoryId 是否都有对应的分类条目
+    syncCategoriesFromRecipes(d);
+    return d;
+}
+
+/**
+ * 扫描 recipes 中所有非空 categoryId，
+ * 如果 categories 中找不到对应的 id 条目，则自动添加。
+ * 这样用户只需在配方里填 categoryId，分类列表会自动补齐。
+ */
+function syncCategoriesFromRecipes(d) {
+    if (!d || !d.recipes) return;
+    const existingIds = {};
+    if (d.categories) {
+        d.categories.forEach(c => { existingIds[c.id] = true; });
+    }
+    let nextOrder = d.categories ? d.categories.length + 1 : 1;
+    let added = false;
+    d.recipes.forEach(r => {
+        const cid = (r.categoryId || '').trim();
+        if (!cid) return;
+        if (!existingIds[cid]) {
+            if (!d.categories) d.categories = [];
+            d.categories.push({
+                id: cid,
+                name: cid,
+                iconIndex: 0,
+                order: nextOrder++
+            });
+            existingIds[cid] = true;
+            added = true;
+        }
+    });
+    return added;
+}
+
+// ============================================================================
+// 数据收集（从 UI 写回 data 对象）
+// ============================================================================
+function collectMenuConfig() {
+    if (!data) return;
+    data.menuType = $('f_menuType').value.trim();
+    data.menuName = $('f_menuName').value.trim();
+    data.menuIcon = parseInt($('f_menuIcon').value) || 0;
+    data.enableSwitchId = parseInt($('f_enableSwitchId').value) || 0;
+    data.enableItemCategory = $('f_enableItemCategory').checked;
+    data.enableWeaponCategory = $('f_enableWeaponCategory').checked;
+    data.enableArmorCategory = $('f_enableArmorCategory').checked;
+    data.enableKeyItemCategory = $('f_enableKeyItemCategory').checked;
+    data.maxMaterials = parseInt($('f_maxMaterials').value) || 3;
+    data.maxMakeItem = parseInt($('f_maxMakeItem').value) || 999;
+    data.enableIncludeEquipItem = $('f_enableIncludeEquipItem').checked;
+    data.menuHelpText = $('f_menuHelpText').value.trim();
+}
+
+function collectCategories() {
+    if (!data) return;
+    const items = $('catList').querySelectorAll('.cat-item');
+    const cats = [];
+    items.forEach(el => {
+        const id = el.querySelector('.cat-id').value.trim();
+        const name = el.querySelector('.cat-name').value.trim();
+        const icon = parseInt(el.querySelector('.cat-icon').value) || 0;
+        const order = parseInt(el.querySelector('.cat-order').value) || 0;
+        if (id && name) {
+            cats.push({ id, name, iconIndex: icon, order });
+        }
+    });
+    data.categories = cats;
+}
+
+function collectCurrentRecipe() {
+    if (!data || selectedRecipeId === null) return null;
+    const recipe = data.recipes.find(r => r.id === selectedRecipeId);
+    if (!recipe) return null;
+
+    recipe.id = parseInt($('e_id').value) || recipe.id;
+    recipe.categoryId = $('e_categoryId').value.trim();
+    recipe.name = $('e_name').value.trim();
+    recipe.description = $('e_description').value.trim();
+    recipe.iconIndex = parseInt($('e_iconIndex').value) || 0;
+    recipe.price = parseInt($('e_price').value) || 0;
+    recipe.unlockSwitchId = parseInt($('e_unlockSwitchId').value) || 0;
+    recipe.target = {
+        type: $('e_targetType').value,
+        id: parseInt($('e_targetId').value) || 1
+    };
+
+    const matItems = $('e_matList').querySelectorAll('.mat-item');
+    recipe.material = [];
+    matItems.forEach(el => {
+        const type = el.querySelector('.mat-type').value;
+        const id = parseInt(el.querySelector('.mat-id').value) || 1;
+        const count = parseInt(el.querySelector('.mat-count').value) || 1;
+        recipe.material.push({ type, id, count });
+    });
+
+    if ($('e_seEnabled').checked) {
+        recipe.se = {
+            name: $('e_seName').value.trim() || 'Heal5',
+            volume: parseInt($('e_seVolume').value) || 90,
+            pitch: parseInt($('e_sePitch').value) || 100,
+            pan: parseInt($('e_sePan').value) || 0
+        };
+    } else {
+        delete recipe.se;
+    }
+    return recipe;
+}
+
+function collectAll() {
+    if (!data) return null;
+    collectMenuConfig();
+    collectCategories();
+    if (selectedRecipeId !== null) collectCurrentRecipe();
+    // 配方 categoryId 更新后，同步补齐缺失的分类
+    syncCategoriesFromRecipes(data);
+    return data;
+}
+
+// ============================================================================
+// 渲染
+// ============================================================================
+function renderAll() {
+    if (!data) {
+        // 无数据：显示起始页，隐藏其他所有
+        $('dataEmpty').style.display = '';
+        $('editorEmpty').style.display = 'none';
+        $('recipeEditor').style.display = 'none';
+        $('emptyHint').style.display = '';
+        $('menuConfigSection').style.display = 'none';
+        $('catSection').style.display = 'none';
+        $('recipeSection').style.display = 'none';
+        return;
+    }
+    $('dataEmpty').style.display = 'none';
+    $('emptyHint').style.display = 'none';
+    $('menuConfigSection').style.display = '';
+    $('catSection').style.display = '';
+    $('recipeSection').style.display = '';
+    renderMenuConfig();
+    renderCategories();
+    renderRecipeList();
+    renderRecipeEditor();
+}
+
+function renderMenuConfig() {
+    if (!data) return;
+    $('f_menuType').value = data.menuType || '';
+    $('f_menuName').value = data.menuName || '';
+    $('f_menuIcon').value = data.menuIcon || 0;
+    $('f_enableSwitchId').value = data.enableSwitchId || 0;
+    $('f_enableItemCategory').checked = data.enableItemCategory !== false;
+    $('f_enableWeaponCategory').checked = data.enableWeaponCategory !== false;
+    $('f_enableArmorCategory').checked = data.enableArmorCategory !== false;
+    $('f_enableKeyItemCategory').checked = !!data.enableKeyItemCategory;
+    $('f_maxMaterials').value = data.maxMaterials || 3;
+    $('f_maxMakeItem').value = data.maxMakeItem || 999;
+    $('f_enableIncludeEquipItem').checked = !!data.enableIncludeEquipItem;
+    $('f_menuHelpText').value = data.menuHelpText || '';
+}
+
+function renderCategories() {
+    const container = $('catList');
+    container.innerHTML = '';
+    if (!data || !data.categories) return;
+    data.categories.forEach(cat => {
+        const div = document.createElement('div');
+        div.className = 'cat-item';
+        div.innerHTML = `
+            <input class="cat-id" value="${escapeHtml(cat.id)}" placeholder="分类ID" onchange="onCatChange()">
+            <input class="cat-name" value="${escapeHtml(cat.name)}" placeholder="名称" onchange="onCatChange()">
+            <input class="cat-icon" type="number" value="${cat.iconIndex || 0}" placeholder="图标" style="width:60px;" onchange="onCatChange()">
+            <input class="cat-order" type="number" value="${cat.order || 0}" placeholder="排序" style="width:60px;" onchange="onCatChange()">
+            <span class="del-cat" onclick="this.parentElement.remove(); onCatChange();">✕</span>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function renderRecipeList() {
+    const container = $('recipeList');
+    container.innerHTML = '';
+    if (!data || !data.recipes) return;
+    $('recipeCount').textContent = '(' + data.recipes.length + ')';
+
+    data.recipes.forEach(recipe => {
+        const div = document.createElement('div');
+        div.className = 'recipe-item' + (recipe.id === selectedRecipeId ? ' active' : '');
+        div.dataset.recipeId = recipe.id;
+        const icon = recipe.iconIndex || (recipe.target ? 1 : 0);
+        const name = recipe.name || '(配方 ' + recipe.id + ')';
+        div.innerHTML = `
+            <div class="r-icon">${icon ? '📦' : '📄'}</div>
+            <div class="r-info">
+                <div class="r-name">${escapeHtml(name)}</div>
+                <div class="r-desc">ID:${recipe.id} ${recipe.categoryId ? '| ' + recipe.categoryId : ''} → ${recipe.target ? (recipe.target.type + '#' + recipe.target.id) : '?'}</div>
+            </div>
+            <span class="r-del" onclick="event.stopPropagation(); deleteRecipe(${recipe.id})">✕</span>
+        `;
+        div.onclick = function() { selectRecipe(recipe.id); };
+        container.appendChild(div);
+    });
+}
+
+function renderRecipeEditor() {
+    if (selectedRecipeId === null || !data) {
+        $('editorEmpty').style.display = '';
+        $('recipeEditor').style.display = 'none';
+        return;
+    }
+    const recipe = data.recipes.find(r => r.id === selectedRecipeId);
+    if (!recipe) {
+        $('editorEmpty').style.display = '';
+        $('recipeEditor').style.display = 'none';
+        selectedRecipeId = null;
+        return;
+    }
+    $('editorEmpty').style.display = 'none';
+    $('recipeEditor').style.display = '';
+
+    $('e_id').value = recipe.id;
+    $('e_categoryId').value = recipe.categoryId || '';
+    $('e_name').value = recipe.name || '';
+    $('e_description').value = recipe.description || '';
+    $('e_iconIndex').value = recipe.iconIndex || 0;
+    $('e_price').value = recipe.price || 0;
+    $('e_unlockSwitchId').value = recipe.unlockSwitchId || 0;
+
+    if (recipe.target) {
+        $('e_targetType').value = recipe.target.type || 'item';
+        $('e_targetId').value = recipe.target.id || 1;
+    } else {
+        $('e_targetType').value = 'item';
+        $('e_targetId').value = 1;
+    }
+
+    renderMaterialList();
+
+    if (recipe.se && recipe.se.name) {
+        $('e_seEnabled').checked = true;
+        $('e_seGroup').style.display = 'flex';
+        $('e_seName').value = recipe.se.name || '';
+        $('e_seVolume').value = recipe.se.volume || 90;
+        $('e_sePitch').value = recipe.se.pitch || 100;
+        $('e_sePan').value = recipe.se.pan || 0;
+    } else {
+        $('e_seEnabled').checked = false;
+        $('e_seGroup').style.display = 'none';
+        $('e_seName').value = '';
+        $('e_seVolume').value = 90;
+        $('e_sePitch').value = 100;
+        $('e_sePan').value = 0;
+    }
+}
+
+function renderMaterialList() {
+    const container = $('e_matList');
+    container.innerHTML = '';
+    if (selectedRecipeId === null) return;
+    const recipe = data.recipes.find(r => r.id === selectedRecipeId);
+    if (!recipe || !recipe.material) return;
+    recipe.material.forEach(mat => {
+        const div = document.createElement('div');
+        div.className = 'mat-item';
+        div.innerHTML = `
+            <select class="mat-type" onchange="onEditChange()">
+                <option value="item" ${mat.type === 'item' ? 'selected' : ''}>道具 (item)</option>
+                <option value="weapon" ${mat.type === 'weapon' ? 'selected' : ''}>武器 (weapon)</option>
+                <option value="armor" ${mat.type === 'armor' ? 'selected' : ''}>防具 (armor)</option>
+            </select>
+            <span class="mat-label">ID:</span>
+            <input class="mat-id" type="number" value="${mat.id || 1}" min="1" onchange="onEditChange()">
+            <span class="mat-label">×</span>
+            <input class="mat-count" type="number" value="${mat.count || 1}" min="1" onchange="onEditChange()">
+            <span class="del-mat" onclick="this.parentElement.remove(); onEditChange();">✕</span>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// ============================================================================
+// 交互事件
+// ============================================================================
+function selectRecipe(id) {
+    if (selectedRecipeId !== null) collectCurrentRecipe();
+    selectedRecipeId = id;
+    renderRecipeList();
+    renderRecipeEditor();
+    const active = $('recipeList').querySelector('.recipe-item.active');
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function onEditChange() {
+    markDirty();
+    collectCurrentRecipe();
+    // 配方 categoryId 变更后，自动补齐缺失的分类
+    const added = syncCategoriesFromRecipes(data);
+    if (added) {
+        renderCategories();
+    }
+    renderRecipeList();
+}
+
+function onCatChange() {
+    markDirty();
+    collectCategories();
+}
+
+function onMenuChange() {
+    collectMenuConfig();
+    markDirty();
+}
+
+function onSEEnableChange() {
+    $('e_seGroup').style.display = $('e_seEnabled').checked ? 'flex' : 'none';
+    onEditChange();
+}
+
+function addMaterial() {
+    if (selectedRecipeId === null) return;
+    const recipe = data.recipes.find(r => r.id === selectedRecipeId);
+    if (!recipe) return;
+    recipe.material.push({ type: 'item', id: 1, count: 1 });
+    renderMaterialList();
+    onEditChange();
+}
+
+function addCategory() {
+    if (!data) return;
+    if (!data.categories) data.categories = [];
+    const idx = data.categories.length + 1;
+    data.categories.push({ id: 'cat_' + idx, name: '新分类', iconIndex: 0, order: idx });
+    renderCategories();
+    markDirty();
+}
+
+function addRecipe() {
+    if (!data) return;
+    const newId = recipeIdCounter++;
+    data.recipes.push({
+        id: newId, name: '新配方', description: '', iconIndex: 0, categoryId: '',
+        material: [{ type: 'item', id: 1, count: 1 }],
+        price: 0, target: { type: 'item', id: 1 }, unlockSwitchId: 0
+    });
+    renderRecipeList();
+    selectRecipe(newId);
+    markDirty();
+    toast('✅ 已添加新配方 ID=' + newId, 'success');
+}
+
+function deleteRecipe(id) {
+    if (!data) return;
+    if (!confirm('确定删除配方 ID=' + id + ' 吗？')) return;
+    const idx = data.recipes.findIndex(r => r.id === id);
+    if (idx === -1) return;
+    data.recipes.splice(idx, 1);
+    if (selectedRecipeId === id) selectedRecipeId = null;
+    renderRecipeList();
+    renderRecipeEditor();
+    markDirty();
+    toast('已删除配方', 'info');
+}
+
+function deleteCurrentRecipe() {
+    if (selectedRecipeId !== null) deleteRecipe(selectedRecipeId);
+}
+
+// ============================================================================
+// 文件打开 — 优先使用 File System Access API
+// ============================================================================
+async function openFilePicker() {
+    // 检测浏览器是否支持 File System Access API
+    if (window.showOpenFilePicker) {
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types: [{
+                    description: '合成数据 JSON',
+                    accept: { 'application/json': ['.json'] }
+                }],
+                multiple: false
+            });
+            fileHandle = handle;
+            const file = await handle.getFile();
+            currentFileName = file.name;
+            await loadFromFileObject(file);
+            return;
+        } catch (err) {
+            if (err.name === 'AbortError') return; // 用户取消
+            console.warn('showOpenFilePicker 失败，回退到传统方式', err);
+        }
+    }
+    // 降级：点击隐藏的 file input
+    $('fileInput').click();
+}
+
+// 传统 file input 回调
+$('fileInput').addEventListener('change', function(e) {
+    if (this.files.length > 0) {
+        // 传统方式无法获取写入句柄，清掉旧句柄
+        fileHandle = null;
+        const file = this.files[0];
+        currentFileName = file.name;
+        loadFromFileObject(file);
+    }
+    this.value = '';
+});
+
+async function loadFromFileObject(file) {
+    try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed.menuType) throw new Error('缺少 menuType 字段');
+        if (!parsed.menuName) parsed.menuName = parsed.menuType;
+        data = normalizeData(parsed);
+        recipeIdCounter = Math.max(100,
+            (data.recipes.length > 0 ? Math.max(...data.recipes.map(r => r.id)) : 100) + 10);
+        selectedRecipeId = null;
+        dirty = false;
+        renderAll();
+        toast('✅ 已加载: ' + currentFileName, 'success');
+    } catch (err) {
+        toast('❌ 解析失败: ' + err.message, 'error');
+    }
+}
+
+// ============================================================================
+// 文件保存 — 直接写回源文件（File System Access API）
+// ============================================================================
+async function saveFile() {
+    if (!data) { toast('❌ 没有数据可保存', 'error'); return; }
+    collectAll();
+
+    // 如果有文件句柄，直接写回
+    if (fileHandle) {
+        try {
+            const writable = await fileHandle.createWritable();
+            await writable.write(JSON.stringify(data, null, 2));
+            await writable.close();
+            dirty = false;
+            toast('✅ 已保存到 ' + currentFileName, 'success');
+            return;
+        } catch (err) {
+            console.warn('直接写回失败，尝试另存为', err);
+        }
+    }
+
+    // 无句柄或写回失败：尝试 showSaveFilePicker 获取句柄
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: currentFileName || '合成数据.json',
+                types: [{
+                    description: '合成数据 JSON',
+                    accept: { 'application/json': ['.json'] }
+                }]
+            });
+            fileHandle = handle;
+            currentFileName = handle.name;
+            const writable = await handle.createWritable();
+            await writable.write(JSON.stringify(data, null, 2));
+            await writable.close();
+            dirty = false;
+            toast('✅ 已保存到 ' + currentFileName, 'success');
+            return;
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            console.warn('showSaveFilePicker 失败，回退到下载', err);
+        }
+    }
+
+    // 终极降级：下载
+    downloadJSON(JSON.stringify(data, null, 2), currentFileName || '合成数据.json');
+    dirty = false;
+    toast('💾 已下载: ' + (currentFileName || '合成数据.json') + '（请手动移动到 dataEx/Alchemy/）', 'success');
+}
+
+async function saveFileAs() {
+    if (!data) { toast('❌ 没有数据可保存', 'error'); return; }
+    collectAll();
+
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: currentFileName || '合成数据.json',
+                types: [{
+                    description: '合成数据 JSON',
+                    accept: { 'application/json': ['.json'] }
+                }]
+            });
+            // 另存为时更新句柄和文件名
+            fileHandle = handle;
+            currentFileName = handle.name;
+            const writable = await handle.createWritable();
+            await writable.write(JSON.stringify(data, null, 2));
+            await writable.close();
+            dirty = false;
+            toast('📄 已另存为: ' + currentFileName, 'success');
+            return;
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+        }
+    }
+
+    // 降级：弹窗输入文件名 + 下载
+    const name = prompt('请输入文件名（.json）', currentFileName || '合成数据.json');
+    if (!name) return;
+    downloadJSON(JSON.stringify(data, null, 2), name);
+    toast('📄 已下载: ' + name, 'info');
+}
+
+function downloadJSON(jsonStr, filename) {
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// 文件拖拽
+// ============================================================================
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', e => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length > 0 && files[0].name.endsWith('.json')) {
+        fileHandle = null;
+        currentFileName = files[0].name;
+        loadFromFileObject(files[0]);
+    }
+});
+
+// ============================================================================
+// 新建空白菜单
+// ============================================================================
+function newBlankMenu() {
+    const blank = {
+        menuType: 'new_menu',
+        menuName: '新菜单',
+        menuIcon: 0,
+        enableSwitchId: 0,
+        enableItemCategory: true,
+        enableWeaponCategory: true,
+        enableArmorCategory: true,
+        enableKeyItemCategory: false,
+        maxMaterials: 3,
+        enableIncludeEquipItem: false,
+        maxMakeItem: 999,
+        menuHelpText: '',
+        categories: [],
+        recipes: []
+    };
+    data = normalizeData(blank);
+    currentFileName = '新建菜单.json';
+    recipeIdCounter = 110;
+    selectedRecipeId = null;
+    dirty = false;
+    fileHandle = null;
+    renderAll();
+    toast('✅ 已新建空白菜单，请填写左侧配置并添加配方', 'success');
+}
+
+// 初始状态：无数据，显示起始页
+renderAll();
+</script>
+</body>
+</html>

@@ -1,9 +1,9 @@
 //=============================================================================
-// SVBattlerAdvance.js
+// 57_SVBattlerAdvance.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.SVBattlerAdvance = true;
+Imported['57_SVBattlerAdvance'] = true;
 
 var GF = GF || {};
 GF.ADSV = GF.ADSV || {};
@@ -700,7 +700,7 @@ GF.ADSV.callMotion = function(battler, motionType) {
 // 初始化信息
 //=============================================================================
 
-console.log("[ADSV] SVBattlerAdvance v" + GF.ADSV.version + " 已加载。");
+console.log("[ADSV] 57_SVBattlerAdvance v" + GF.ADSV.version + " 已加载。");
 if (GF.ADSV.extraMotions.length > 0) {
     console.log("[ADSV] 额外动作: " + GF.ADSV.extraMotions.join(", "));
 }
