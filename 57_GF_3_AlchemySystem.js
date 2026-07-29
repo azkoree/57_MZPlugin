@@ -76,8 +76,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *
  * 通过插件参数『合成数据文件列表』注册每个数据文件路径。
  *
- * 详细 JSON 结构请参考网页工具附带的示例文件，
- * 也可通过网页工具来直接新建和编辑JSON文件
+ *
  *
  * ============================================================================
  * 插件指令
@@ -316,7 +315,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text 显示帮助窗口
  * @type boolean
  * @desc 是否在合成界面顶部显示帮助文本窗口。
- * @default true
+ * @default false
  *
  * @param ShowMenuListHelp
  * @parent GeneralSet
@@ -567,14 +566,14 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text X坐标
  * @type number
  * @desc 窗口X坐标（像素）。
- * @default 0
+ * @default 152
  *
  * @param CategoryY
  * @parent CategoryWindowSet
  * @text Y坐标
  * @type number
  * @desc 窗口Y坐标（像素）。
- * @default 80
+ * @default 96
  *
  * @param CategoryWidth
  * @parent CategoryWindowSet
@@ -582,7 +581,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口宽度（像素）。
- * @default 240
+ * @default 1063
  *
  * @param CategoryHeight
  * @parent CategoryWindowSet
@@ -590,7 +589,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口高度（像素）。
- * @default 48
+ * @default 78
  *
  * @param CategoryFontSize
  * @parent CategoryWindowSet
@@ -618,7 +617,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @parent CategoryWindowSet
  * @text 列数
  * @type number
- * @min 1
+ * @min 4
  * @desc 分类窗口的显示列数（横向排列时每行显示的类别数）。
  * @default 1
  *
@@ -644,14 +643,14 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text X坐标
  * @type number
  * @desc 窗口X坐标（像素）。
- * @default 0
+ * @default 152
  *
  * @param RecipeListY
  * @parent RecipeListWindowSet
  * @text Y坐标
  * @type number
  * @desc 窗口Y坐标（像素）。
- * @default 128
+ * @default 192
  *
  * @param RecipeListWidth
  * @parent RecipeListWindowSet
@@ -659,7 +658,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口宽度（像素）。
- * @default 480
+ * @default 715
  *
  * @param RecipeListHeight
  * @parent RecipeListWindowSet
@@ -667,7 +666,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口高度（像素）。
- * @default 812
+ * @default 531
  *
  * @param RecipeListFontSize
  * @parent RecipeListWindowSet
@@ -721,14 +720,14 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text X坐标
  * @type number
  * @desc 窗口X坐标（像素）。
- * @default 480
+ * @default 500
  *
  * @param DetailY
  * @parent RecipeDetailWindowSet
  * @text Y坐标
  * @type number
  * @desc 窗口Y坐标（像素）。
- * @default 128
+ * @default 192
  *
  * @param DetailWidth
  * @parent RecipeDetailWindowSet
@@ -736,7 +735,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口宽度（像素）。
- * @default 720
+ * @default 715
  *
  * @param DetailHeight
  * @parent RecipeDetailWindowSet
@@ -744,7 +743,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口高度（像素）。
- * @default 812
+ * @default 531
  *
  * @param DetailFontSize
  * @parent RecipeDetailWindowSet
@@ -869,14 +868,14 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text X坐标
  * @type number
  * @desc 窗口X坐标（像素）。
- * @default 1200
+ * @default 152
  *
  * @param GoldY
  * @parent GoldWindowSet
  * @text Y坐标
  * @type number
  * @desc 窗口Y坐标（像素）。
- * @default 128
+ * @default 659
  *
  * @param GoldWidth
  * @parent GoldWindowSet
@@ -884,7 +883,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口宽度（像素）。
- * @default 720
+ * @default 329
  *
  * @param GoldHeight
  * @parent GoldWindowSet
@@ -892,7 +891,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口高度（像素）。
- * @default 48
+ * @default 64
  *
  * @param GoldFontSize
  * @parent GoldWindowSet
@@ -938,14 +937,14 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text X坐标
  * @type number
  * @desc 窗口X坐标（像素）。
- * @default 440
+ * @default 461
  *
  * @param NumY
  * @parent NumberInputWindowSet
  * @text Y坐标
  * @type number
  * @desc 窗口Y坐标（像素）。
- * @default 380
+ * @default 318
  *
  * @param NumWidth
  * @parent NumberInputWindowSet
@@ -953,7 +952,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口宽度（像素）。
- * @default 400
+ * @default 445
  *
  * @param NumHeight
  * @parent NumberInputWindowSet
@@ -961,7 +960,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type number
  * @min 50
  * @desc 窗口高度（像素）。
- * @default 240
+ * @default 300
  *
  * @param NumFontSize
  * @parent NumberInputWindowSet
@@ -1841,7 +1840,7 @@ Window_AlchemyCategory.prototype.constructor = Window_AlchemyCategory;
 
 Window_AlchemyCategory.prototype.initialize = function() {
     const ws = GF.AHS.param.CategoryWindowSet;
-    Window_Selectable.prototype.initialize.call(this, ws.x, ws.y, ws.width, ws.height);
+    Window_Selectable.prototype.initialize.call(this, new Rectangle(ws.x, ws.y, ws.width, ws.height));
     this.processInitParam(ws);
     this._categories = [];
     this._menuType = null;
@@ -1937,7 +1936,7 @@ Window_AlchemyRecipeList.prototype.constructor = Window_AlchemyRecipeList;
 
 Window_AlchemyRecipeList.prototype.initialize = function() {
     const ws = GF.AHS.param.RecipeListWindowSet;
-    Window_Selectable.prototype.initialize.call(this, ws.x, ws.y, ws.width, ws.height);
+    Window_Selectable.prototype.initialize.call(this, new Rectangle(ws.x, ws.y, ws.width, ws.height));
     this.processInitParam(ws);
     this._menuType = null;
     this._recipes = [];
@@ -2226,6 +2225,7 @@ Window_AlchemyNumberInput.prototype.initialize = function() {
     this._number = 1;
     this._callback = null;
     this._cancelCallback = null;
+    this.setHandler('cancel', this.processCancel.bind(this));
     this.createButtons();
     this.select(0);
     this._canRepeat = false;
@@ -2406,6 +2406,10 @@ Window_AlchemyNumberInput.prototype.update = function() {
     if (this.isOpenAndActive()) {
         this.processNumberChange();
     }
+    if (this.isOpenAndActive() && (Input.isTriggered("cancel") || TouchInput.isCancelled())) {
+        Input.clear();
+        this.processCancel();
+    }
 };
 
 Window_AlchemyNumberInput.prototype.processNumberChange = function() {
@@ -2449,7 +2453,7 @@ Window_AlchemyNumberInput.prototype.processOk = function() {
 Window_AlchemyNumberInput.prototype.processCancel = function() {
     if (this.isOpenAndActive() && this._cancelCallback) {
         this.deactivate();
-        this.hide();
+        this.close();
         SoundManager.playCancel();
         this._cancelCallback();
     }
@@ -2543,7 +2547,7 @@ Window_AlchemyMenuList.prototype.initialize = function() {
     const w = Graphics.boxWidth;
     const helpH = GF.AHS.param.ShowMenuListHelp ? 80 : 0;
     const h = Graphics.boxHeight - helpH;
-    Window_Selectable.prototype.initialize.call(this, 0, helpH, w, h);
+    Window_Selectable.prototype.initialize.call(this, new Rectangle(0, helpH, w, h));
     this._menuTypes = [];
     this.refresh();
 };
