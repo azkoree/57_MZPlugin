@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// GF_3_AlchemySystem.js
+// 57_GF_3_AlchemySystem.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_3_AlchemySystem = true;
+Imported.57_GF_3_AlchemySystem = true;
 
 var GF = GF || {};
 GF.AHS = GF.AHS || {};
@@ -62,7 +62,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *     可以在主菜单设置进入合成菜单的按钮
  *     关键字：alchemy
  *     按钮名称：return '合成';
- *     是否显示按钮：return Imported.GF_3_AlchemySystem;
+ *     是否显示按钮：return Imported.57_GF_3_AlchemySystem;
  *     是否允许激活按钮：return true;
  *     按钮激活后效果：运行代码
  *     按钮激活运行代码：SceneManager.push(Scene_Alchemy);
@@ -76,8 +76,8 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *
  * 通过插件参数『合成数据文件列表』注册每个数据文件路径。
  *
- * 详细 JSON 结构请参考插件同级目录下的需求文档：
- *   GF_3_AlchemySystem_需求文档.md
+ * 详细 JSON 结构请参考网页工具附带的示例文件，
+ * 也可通过网页工具来直接新建和编辑JSON文件
  *
  * ============================================================================
  * 插件指令
@@ -317,6 +317,19 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type boolean
  * @desc 是否在合成界面顶部显示帮助文本窗口。
  * @default true
+ *
+ * @param ShowMenuListHelp
+ * @parent GeneralSet
+ * @text 显示菜单选择帮助窗口
+ * @type boolean
+ * @desc 是否在菜单选择列表（同时打开多个菜单时）显示帮助文本窗口。
+ * @default true
+ *
+ * @param MenuListHelpText
+ * @parent GeneralSet
+ * @text 菜单选择帮助文本
+ * @desc 菜单选择列表（同时打开多个菜单时）帮助窗口显示的文本。
+ * @default 请选择要使用的合成设施。
  *
  * @param ShowGoldWindow
  * @parent GeneralSet
@@ -769,6 +782,85 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 窗口背景与皮肤。
  * @default {"LayoutType":"默认皮肤","BackgroundFile":"","BackgroundX":"0","BackgroundY":"0"}
  *
+ * @param DetailStyleSet
+ * @text ── 详情窗口样式 ──
+ *
+ * @param DetailTitleColor
+ * @parent DetailStyleSet
+ * @text 标题文字颜色
+ * @desc 章节标题【】的文字颜色。填数字=系统颜色编号，填#rrggbb=自定义颜色。
+ * @default 0
+ *
+ * @param DetailTitleBarEnable
+ * @parent DetailStyleSet
+ * @text 标题背景条启用
+ * @type boolean
+ * @on 启用
+ * @off 关闭
+ * @desc 是否在标题后方绘制渐变背景条。
+ * @default true
+ *
+ * @param DetailTitleBarColorL
+ * @parent DetailStyleSet
+ * @text 标题背景条-左渐变色
+ * @desc 背景条左侧颜色。填数字=系统颜色编号，填#rrggbb=自定义颜色，填opacity或透明=该侧透明。
+ * @default 16
+ *
+ * @param DetailTitleBarColorR
+ * @parent DetailStyleSet
+ * @text 标题背景条-右渐变色
+ * @desc 背景条右侧颜色。填数字=系统颜色编号，填#rrggbb=自定义颜色，填opacity或透明=该侧透明。
+ * @default 0
+ *
+ * @param DetailTitleBarLength
+ * @parent DetailStyleSet
+ * @text 标题背景条长度
+ * @type number
+ * @min 0
+ * @max 1
+ * @decimals 2
+ * @desc 背景条宽度占窗口宽度的比例（0~1）。
+ * @default 0.6
+ *
+ * @param DetailDividerEnable
+ * @parent DetailStyleSet
+ * @text 分割线启用
+ * @type boolean
+ * @on 启用
+ * @off 关闭
+ * @desc 是否在章节之间绘制渐变分割线。
+ * @default true
+ *
+ * @param DetailDividerColorL
+ * @parent DetailStyleSet
+ * @text 分割线-左渐变色
+ * @desc 分割线左侧颜色。填数字=系统颜色编号，填#rrggbb=自定义颜色，填opacity或透明=该侧透明。
+ * @default 18
+ *
+ * @param DetailDividerColorR
+ * @parent DetailStyleSet
+ * @text 分割线-右渐变色
+ * @desc 分割线右侧颜色。填数字=系统颜色编号，填#rrggbb=自定义颜色，填opacity或透明=该侧透明。
+ * @default 0
+ *
+ * @param DetailDividerLength
+ * @parent DetailStyleSet
+ * @text 分割线长度
+ * @type number
+ * @min 0
+ * @max 1
+ * @decimals 2
+ * @desc 分割线宽度占窗口宽度的比例（0~1）。
+ * @default 0.8
+ *
+ * @param DetailDescColor
+ * @parent DetailStyleSet
+ * @text 描述文字颜色
+ * @type number
+ * @min 0
+ * @desc 配方描述文字的默认颜色（系统颜色编号）。描述中可通过 \\C[x] 覆盖。
+ * @default 8
+ *
  * @param GoldWindowSet
  * @text ── 金币窗口 ──
  *
@@ -1092,6 +1184,8 @@ GF.AHS.param = GF.AHS.param || {};
     GF.AHS.param.EnableSwitchId = Number(params['EnableSwitchId'] || 0);
     GF.AHS.param.ShowCategoryWindow = params['ShowCategoryWindow'] === 'true';
     GF.AHS.param.ShowHelpWindow = params['ShowHelpWindow'] !== 'false';
+    GF.AHS.param.ShowMenuListHelp = params['ShowMenuListHelp'] !== 'false';
+    GF.AHS.param.MenuListHelpText = String(params['MenuListHelpText'] || '请选择要使用的合成设施。');
     GF.AHS.param.ShowGoldWindow = params['ShowGoldWindow'] === 'true';
     GF.AHS.param.NotifyStyleId = Math.max(0, Number(params['NotifyStyleId'] || 1));
 
@@ -1189,6 +1283,18 @@ GF.AHS.param = GF.AHS.param || {};
         WindowLayout: params['DetailLayout'] || '{}'
     };
     GF.AHS.param.RecipeDetailWindowSet = DataManager.setupWindowInitParam(detailRaw);
+
+    // 详情窗口样式
+    GF.AHS.param.DetailTitleColor = params['DetailTitleColor'] || '0';
+    GF.AHS.param.DetailTitleBarEnable = params['DetailTitleBarEnable'] !== 'false';
+    GF.AHS.param.DetailTitleBarColorL = params['DetailTitleBarColorL'] || '16';
+    GF.AHS.param.DetailTitleBarColorR = params['DetailTitleBarColorR'] || '0';
+    GF.AHS.param.DetailTitleBarLength = Math.min(1, Math.max(0, Number(params['DetailTitleBarLength'] || 0.6)));
+    GF.AHS.param.DetailDividerEnable = params['DetailDividerEnable'] !== 'false';
+    GF.AHS.param.DetailDividerColorL = params['DetailDividerColorL'] || '18';
+    GF.AHS.param.DetailDividerColorR = params['DetailDividerColorR'] || '0';
+    GF.AHS.param.DetailDividerLength = Math.min(1, Math.max(0, Number(params['DetailDividerLength'] || 0.8)));
+    GF.AHS.param.DetailDescColor = Math.max(0, Number(params['DetailDescColor'] || 8));
 
     // 金币窗口
     const goldRaw = {
@@ -1786,19 +1892,29 @@ Window_AlchemyCategory.prototype.setRecipeListWindow = function(recipeListWindow
 Window_AlchemyCategory.prototype.updateHelp = function() {
     // 光标移动到不同分类时自动刷新配方列表
     if (this._recipeListWindow) {
-        this._recipeListWindow.setCategory(this.categoryId());
-        // 同步刷新详情和金币
-        if (this._recipeListWindow._detailWindow) {
-            this._recipeListWindow._detailWindow.setRecipe(this._recipeListWindow.recipe());
-        }
+        const targetCategory = this.categoryId();
+        this._recipeListWindow.setCategory(targetCategory);
+        // 直接通过场景刷新详情和金币
         const scene = AlchemyManager._currentScene;
-        if (scene && scene.updateGoldWindow) {
-            scene.updateGoldWindow();
+        if (scene) {
+            if (scene._detailWindow) {
+                const recipe = scene._recipeListWindow ? scene._recipeListWindow.recipe() : null;
+                scene._detailWindow.setRecipe(recipe);
+            }
+            if (scene.updateGoldWindow) {
+                scene.updateGoldWindow();
+            }
         }
     }
 };
 
 Window_AlchemyCategory.prototype.callUpdateHelp = function() {
+    this.updateHelp();
+};
+
+// 每次光标移动时强制刷新配方列表与详情
+Window_AlchemyCategory.prototype.smoothSelect = function(index) {
+    Window_Selectable.prototype.smoothSelect.call(this, index);
     this.updateHelp();
 };
 
@@ -1845,6 +1961,10 @@ Window_AlchemyRecipeList.prototype.setCategory = function(categoryId) {
     this._recipes = AlchemyManager.getRecipesByCategory(this._menuType, categoryId);
     this.refresh();
     this.select(0);
+    // 强制同步刷新详情窗口
+    if (this._detailWindow) {
+        this._detailWindow.setRecipe(this.recipe());
+    }
 };
 
 Window_AlchemyRecipeList.prototype.isCurrentItemEnabled = function() {
@@ -1900,9 +2020,7 @@ Window_AlchemyRecipeList.prototype.recipeId = function() {
 };
 
 Window_AlchemyRecipeList.prototype.callUpdateHelp = function() {
-    if (this.active) {
-        this.updateHelp();
-    }
+    this.updateHelp();
 };
 
 Window_AlchemyRecipeList.prototype.updateHelp = function() {
@@ -1922,6 +2040,18 @@ Window_AlchemyRecipeList.prototype.updateHelp = function() {
 
 Window_AlchemyRecipeList.prototype.setDetailWindow = function(detailWindow) {
     this._detailWindow = detailWindow;
+};
+
+// --- 颜色解析 ---
+
+AlchemyManager._resolveColor = function(colorStr) {
+    if (!colorStr) return '#ffffff';
+    const s = String(colorStr).trim().toLowerCase();
+    if (s === 'opacity' || s === '透明') return 'rgba(0,0,0,0)';
+    if (s.charAt(0) === '#') return s;
+    const n = Number(colorStr);
+    if (!isNaN(n)) return ColorManager.textColor(n);
+    return '#ffffff';
 };
 
 //=============================================================================
@@ -1955,43 +2085,79 @@ Window_AlchemyRecipeDetail.prototype.setRecipe = function(recipe) {
 
 Window_AlchemyRecipeDetail.prototype.refresh = function() {
     this.contents.clear();
+    if (this.contentsBack) this.contentsBack.clear();
     if (!this._recipe || !this._menuType) return;
 
     const recipe = this._recipe;
     const menuType = this._menuType;
     const visible = AlchemyManager.isRecipeVisible(menuType, recipe);
-
-    let y = 0;
     const lh = this.lineHeight();
     const ws = this.contentsWidth();
-    const textIndent = 0;
+    const textIndent = 10;
+    const styleL = 4;
 
-    // 产出物品标题
+    // 颜色解析
+    const titleColor = AlchemyManager._resolveColor(GF.AHS.param.DetailTitleColor);
+    const barEnable = GF.AHS.param.DetailTitleBarEnable;
+    const barColorL = AlchemyManager._resolveColor(GF.AHS.param.DetailTitleBarColorL);
+    const barColorR = AlchemyManager._resolveColor(GF.AHS.param.DetailTitleBarColorR);
+    const barLen = GF.AHS.param.DetailTitleBarLength;
+    const divEnable = GF.AHS.param.DetailDividerEnable;
+    const divColorL = AlchemyManager._resolveColor(GF.AHS.param.DetailDividerColorL);
+    const divColorR = AlchemyManager._resolveColor(GF.AHS.param.DetailDividerColorR);
+    const divLen = GF.AHS.param.DetailDividerLength;
+
+    // --- 绘制标题背景条 ---
+    this._drawTitleBar = function(y, width) {
+        if (!barEnable || barLen <= 0) return;
+        const barW = Math.floor(ws * barLen);
+        if (barW < 4) return;
+        const barX = textIndent;
+        this.contentsBack.clearRect(0, y, ws, lh);
+        this.contentsBack.gradientFillNormalRect(barX, y, barW, lh, barColorL, barColorR);
+    };
+
+    // --- 绘制渐变分割线 ---
+    this._drawDivider = function(y) {
+        if (!divEnable || divLen <= 0) return;
+        const divW = Math.floor(ws * divLen);
+        if (divW < 4) return;
+        const divX = textIndent + Math.floor((ws - textIndent * 2 - divW) / 2);
+        this.contents.gradientFillNormalRect(divX, y, divW, 2, divColorL, divColorR);
+    };
+
+    // ===== 开始绘制内容 =====
+    let y = styleL;
+
+    // --- 配方标题 ---
     if (visible) {
         const outputName = AlchemyManager.getRecipeName(menuType, recipe);
         const outputIcon = AlchemyManager.getRecipeIcon(menuType, recipe);
+        let iconOffset = 0;
         if (outputIcon > 0) {
             this.drawIcon(outputIcon, textIndent, y);
+            iconOffset = ImageManager.iconWidth + 4;
         }
         this.changeTextColor(ColorManager.normalColor());
-        this.drawText(outputName, textIndent + (outputIcon > 0 ? ImageManager.iconWidth + 4 : 0), y, ws, 'left');
+        this.drawText(outputName, textIndent + iconOffset, y, ws - textIndent - iconOffset, 'left');
     } else {
         this.changeTextColor(ColorManager.textColor(8));
-        this.drawText(GF.AHS.param.UnknownRecipeText, textIndent, y, ws, 'left');
+        this.drawText(GF.AHS.param.UnknownRecipeText, textIndent, y, ws - textIndent, 'left');
     }
-    y += lh;
-
-    // 分割线
-    y += 4;
+    y += lh + styleL;
 
     if (!visible) return;
 
-    // 必要素材
-    this.changeTextColor(this.systemColor());
-    this.drawText(GF.AHS.param.RequiredMaterialText, textIndent, y, ws, 'left');
+    // 分割线
+    this._drawDivider(y);
+    y += styleL + 2 + styleL;
+
+    // --- 必要素材 ---
+    this._drawTitleBar(y, this.textWidth('【' + GF.AHS.param.RequiredMaterialText + '】') + 20);
+    this.changeTextColor(titleColor);
+    this.drawText('【' + GF.AHS.param.RequiredMaterialText + '】', textIndent, y, ws - textIndent, 'left');
     y += lh;
 
-    this.changeTextColor(ColorManager.normalColor());
     if (recipe.material) {
         for (let i = 0; i < recipe.material.length; i++) {
             const mat = recipe.material[i];
@@ -2002,34 +2168,40 @@ Window_AlchemyRecipeDetail.prototype.refresh = function() {
             const color = have >= need ? ColorManager.normalColor() : ColorManager.textColor(7);
             this.changeTextColor(color);
             const iconIndex = item.iconIndex || 0;
+            let iconOff = 0;
             if (iconIndex > 0) {
                 this.drawIcon(iconIndex, textIndent, y);
+                iconOff = ImageManager.iconWidth + 4;
             }
-            const iconOffset = iconIndex > 0 ? ImageManager.iconWidth + 4 : 0;
             const matText = item.name + ' x' + need + '  (' + have + '/' + need + ')';
-            this.drawText(matText, textIndent + iconOffset, y, ws - iconOffset, 'left');
+            this.drawText(matText, textIndent + iconOff, y, ws - textIndent - iconOff, 'left');
             y += lh;
         }
     }
 
-    // 必要费用
+    // --- 必要费用 ---
     if (recipe.price && recipe.price > 0) {
-        y += 4;
-        this.changeTextColor(this.systemColor());
-        this.drawText(GF.AHS.param.RequiredCostText, textIndent, y, ws, 'left');
+        y += styleL;
+        this._drawTitleBar(y, this.textWidth('【' + GF.AHS.param.RequiredCostText + '】') + 20);
+        this.changeTextColor(titleColor);
+        this.drawText('【' + GF.AHS.param.RequiredCostText + '】', textIndent, y, ws - textIndent, 'left');
         y += lh;
         this.changeTextColor(ColorManager.normalColor());
         const goldText = recipe.price + ' ' + GF.AHS.param.GoldUnit;
-        this.drawText(goldText, textIndent, y, ws, 'left');
+        this.drawText(goldText, textIndent, y, ws - textIndent, 'left');
         y += lh;
     }
 
-    // 描述
+    // 分割线
+    y += styleL;
+    this._drawDivider(y);
+    y += styleL + 2 + styleL;
+
+    // --- 描述 ---
     const desc = AlchemyManager.getRecipeDescription(menuType, recipe);
     if (desc) {
-        y += 4;
-        this.changeTextColor(ColorManager.textColor(8));
-        this.drawText(desc, textIndent, y, ws, 'left');
+        const descColor = GF.AHS.param.DetailDescColor;
+        this.drawTextEx(`\\C[${descColor}]${desc}`, textIndent, y, ws - textIndent, 'left');
     }
 };
 
@@ -2266,6 +2438,7 @@ Window_AlchemyNumberInput.prototype.playOkSound = function() {
 
 Window_AlchemyNumberInput.prototype.processOk = function() {
     if (this.isOpenAndActive() && this._callback) {
+        this.updateInputData();
         this.deactivate();
         this.hide();
         SoundManager.playOk();
@@ -2304,7 +2477,7 @@ Window_AlchemyNumberInput.prototype.onButtonOk = function() {
     this.processOk();
 };
 
-Window_AlchemyNumberInput.prototype.buttonCancel = function() {
+Window_AlchemyNumberInput.prototype.onButtonCancel = function() {
     this.processCancel();
 };
 
@@ -2330,9 +2503,13 @@ Scene_AlchemyMenuList.prototype.initialize = function() {
 
 Scene_AlchemyMenuList.prototype.create = function() {
     Scene_MenuBase.prototype.create.call(this);
-    this._helpWindow = new Window_AlchemyHelp();
-    this._helpWindow.setText('请选择要使用的合成设施。');
-    this.addWindow(this._helpWindow);
+    if (GF.AHS.param.ShowMenuListHelp) {
+        this._helpWindow = new Window_AlchemyHelp();
+        this._helpWindow.setText(GF.AHS.param.MenuListHelpText);
+        this.addWindow(this._helpWindow);
+    } else {
+        this._helpWindow = null;
+    }
     this._menuListWindow = new Window_AlchemyMenuList();
     this._menuListWindow.setHandler('ok', this.onMenuOk.bind(this));
     this._menuListWindow.setHandler('cancel', this.popScene.bind(this));
@@ -2364,8 +2541,9 @@ Window_AlchemyMenuList.prototype.constructor = Window_AlchemyMenuList;
 
 Window_AlchemyMenuList.prototype.initialize = function() {
     const w = Graphics.boxWidth;
-    const h = Graphics.boxHeight - 80;
-    Window_Selectable.prototype.initialize.call(this, 0, 80, w, h);
+    const helpH = GF.AHS.param.ShowMenuListHelp ? 80 : 0;
+    const h = Graphics.boxHeight - helpH;
+    Window_Selectable.prototype.initialize.call(this, 0, helpH, w, h);
     this._menuTypes = [];
     this.refresh();
 };
