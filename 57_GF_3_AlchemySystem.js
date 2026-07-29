@@ -15,7 +15,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        玩法 - 合成系统
- * @author Reasonix
+ * @author 57 & deepseek
  * @url https://afdian.net/a/ganfly
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_1_CoreOfWindowUI

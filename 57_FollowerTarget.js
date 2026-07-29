@@ -9,7 +9,7 @@ Imported['57_FollowerTarget'] = true;
 /*:
  * @target MZ
  * @plugindesc v1.3.0  跟随者移动路线 - 对跟随者设置移动路线
- * @author 
+ * @author 57 & deepseek
  *
  * @orderAfter DotMoveSystem
  * @orderAfter GF_2_CoreOfMapEvent

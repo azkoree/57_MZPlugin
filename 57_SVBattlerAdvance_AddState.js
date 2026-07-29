@@ -14,7 +14,7 @@ GF.ADSV.AddState.version = 1.03;
 /*:
  * @target MZ
  * @plugindesc [v1.03] SVBattlerAdvance扩展 - 状态绑定动作
- * @author
+ * @author 57 & deepseek
  * @url
  * @orderAfter SVBattlerAdvance
  * @orderAfter GF_3_ActSeqSystem

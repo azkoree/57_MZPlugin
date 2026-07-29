@@ -15,7 +15,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]     补丁 - 信息推送音效
- * @author 57鞭策ai写
+ * @author 57 & deepseek
  * @url https://afdian.net/a/ganfly
  * @orderAfter GF_3_ToastSystem
  * @base GF_3_ToastSystem

@@ -14,7 +14,7 @@ GF.ADSV.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]  战斗 - 独立多帧精灵图SV战斗
- * @author 
+ * @author 57 & deepseek
  * @url 
  * @orderAfter GF_2_CoreOfBattle
  * @orderAfter GF_2_CoreOfEnemy

@@ -15,7 +15,7 @@ GF.BAUI.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        战斗 - 角色选择UI控制
- * @author 您的名字
+ * @author 57 & deepseek
  * @url
  * @orderAfter GF_2_CoreOfBattle
  * @base GF_2_CoreOfBattle

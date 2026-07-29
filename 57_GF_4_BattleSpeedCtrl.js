@@ -15,7 +15,7 @@ GF.BSC.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.01]        战斗 - 战斗速度快捷键
- * @author 用户
+ * @author 57 & deepseek
  * @url https://afdian.net/a/ganfly
  * @orderAfter GF_2_CoreOfOption
  * @base GF_2_CoreOfOption

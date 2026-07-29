@@ -14,7 +14,7 @@ GF.Patch.ItemInfoWheelScroll = { version: 1.01 };
 /*:
  * @target MZ
  * @plugindesc [v1.01]  修补 - 物品信息窗口增强
- * @author gt50 (patch by user)
+ * @author 57 & deepseek
  * 
  * @orderAfter GF_3_ItemInfoWindow
  * @base GF_3_ItemInfoWindow

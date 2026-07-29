@@ -15,7 +15,7 @@ GF.CLE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        战斗 - 敌人召唤
- * @author 用户自定（移植自 NRP_CallEnemy by Takeshi Sunagawa）
+ * @author 57 & deepseek
  * @url https://afdian.net/a/ganfly
  * @orderAfter GF_0_CoreOfGame
  * @base GF_0_CoreOfGame

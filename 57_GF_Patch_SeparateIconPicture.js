@@ -14,7 +14,7 @@ GF.Patch.SeparateIconPicture = { version: 1.00 };
 /*:
  * @target MZ
  * @plugindesc [v1.00]  修补 - 分离列表图标与信息窗大图片
- * @author gt50 (patch by user)
+ * @author 57 & deepseek
  * 
  * @orderAfter GF_1_CoreOfWindowUI
  * @orderAfter GF_2_CoreOfItemEquip
