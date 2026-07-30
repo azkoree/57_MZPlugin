@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// 57_GF_3_AlchemySystem.js
+// GF_3_AlchemySystem.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.57_GF_3_AlchemySystem = true;
+Imported.GF_3_AlchemySystem = true;
 
 var GF = GF || {};
 GF.AHS = GF.AHS || {};
@@ -15,8 +15,8 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        玩法 - 合成系统
- * @author Reasonix
- * @url https://afdian.net/a/ganfly
+ * @author 57 & deepseek
+ * @url
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_1_CoreOfWindowUI
  * @orderAfter GF_0_CoreOfGame
@@ -62,7 +62,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *     可以在主菜单设置进入合成菜单的按钮
  *     关键字：alchemy
  *     按钮名称：return '合成';
- *     是否显示按钮：return Imported.57_GF_3_AlchemySystem;
+ *     是否显示按钮：return Imported.GF_3_AlchemySystem;
  *     是否允许激活按钮：return true;
  *     按钮激活后效果：运行代码
  *     按钮激活运行代码：SceneManager.push(Scene_Alchemy);
@@ -76,6 +76,8 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *
  * 通过插件参数『合成数据文件列表』注册每个数据文件路径。
  *
+ * 详细 JSON 结构请参考插件同级目录下的需求文档：
+ *   GF_3_AlchemySystem_需求文档.md
  *
  * ============================================================================
  * 插件指令

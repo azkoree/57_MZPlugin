@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// 57_GF_ToastSE.js
+// GF_ToastSE.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_GF_ToastSE'] = true;
+Imported.GF_ToastSE = true;
 
 var GF = GF || {};
 GF.TSE = GF.TSE || {};
@@ -16,12 +16,12 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @target MZ
  * @plugindesc [v1.00]     补丁 - 信息推送音效
  * @author 57 & deepseek
- * @url https://afdian.net/a/ganfly
+ * @url
  * @orderAfter GF_3_ToastSystem
  * @base GF_3_ToastSystem
  * @orderAfter GF_3_QuestSystem
  * @orderAfter GF_3_IndependEquipSystem
- * @orderAfter 57_GF_EasySkillMastery
+ * @orderAfter GF_EasySkillMastery
  *
  * @help
  * ============================================================================
@@ -364,11 +364,42 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 音调（50-150），默认100。
  * @default 100
  *
+ * @param GlossarySE
+ * @text ====词典解锁通知音效====
+ * @desc 词典条目解锁时使用的音效。（需安装 GF_3_ExternalGlossary）
+ *
+ * @param GlossarySEName
+ * @text 词典解锁-音效文件名
+ * @parent GlossarySE
+ * @type file
+ * @require 1
+ * @dir audio/se/
+ * @desc 音效文件名，留空则回退到默认音效。
+ * @default 
+ *
+ * @param GlossarySEVolume
+ * @text 词典解锁-音量
+ * @parent GlossarySE
+ * @type number
+ * @min 0
+ * @max 100
+ * @desc 音量（0-100），默认80。
+ * @default 80
+ *
+ * @param GlossarySEPitch
+ * @text 词典解锁-音调
+ * @parent GlossarySE
+ * @type number
+ * @min 50
+ * @max 150
+ * @desc 音调（50-150），默认100。
+ * @default 100
+ *
  */
 //=============================================================================
 
 if (!Imported.GF_3_ToastSystem) {
-    alert("错误:未找到前置插件 GF_3_ToastSystem。\n请确保已安装并启用 GF_3_ToastSystem 插件,并将其放置在 57_GF_ToastSE 插件之前。");
+    alert("错误:未找到前置插件 GF_3_ToastSystem。\n请确保已安装并启用 GF_3_ToastSystem 插件,并将其放置在 GF_ToastSE 插件之前。");
 }
 
 //=============================================================================
@@ -432,6 +463,12 @@ GF.Param.TSEQuestSE = {
     pitch: Number(GF.Parameters['QuestSEPitch'] || 100),
 };
 
+GF.Param.TSEGlossarySE = {
+    name: String(GF.Parameters['GlossarySEName'] || ''),
+    volume: Number(GF.Parameters['GlossarySEVolume'] || 80),
+    pitch: Number(GF.Parameters['GlossarySEPitch'] || 100),
+};
+
 //=============================================================================
 // Type Constants
 //=============================================================================
@@ -446,6 +483,7 @@ GF.TSE.TYPE = {
     LEVEL_UP: 6,   // 角色升级
     QUEST:    7,   // 任务系统
     MASTERY:  8,   // 技能精通（GF_EasySkillMastery）
+    GLOSSARY: 9,   // 词典解锁（GF_3_ExternalGlossary）
 };
 
 // Type → param mapping
@@ -459,6 +497,7 @@ GF.TSE._typeToParam[GF.TSE.TYPE.EXP]      = GF.Param.TSEExpSE;
 GF.TSE._typeToParam[GF.TSE.TYPE.LEVEL_UP] = GF.Param.TSELevelUpSE;
 GF.TSE._typeToParam[GF.TSE.TYPE.QUEST]    = GF.Param.TSEQuestSE;
 GF.TSE._typeToParam[GF.TSE.TYPE.MASTERY]  = GF.Param.TSEMasterySE;
+GF.TSE._typeToParam[GF.TSE.TYPE.GLOSSARY] = GF.Param.TSEGlossarySE;
 
 //=============================================================================
 // Game_Temp — batch accumulator & type tracking
@@ -587,6 +626,20 @@ if (Imported.GF_3_QuestSystem) {
 }
 
 //=============================================================================
+// Patch: GF_3_ExternalGlossary — 词典解锁通知类型标记
+//=============================================================================
+
+if (Imported.GF_3_ExternalGlossary && GlossaryManager._pushUnlockToast) {
+
+    GF.TSE.GlossaryManager__pushUnlockToast = GlossaryManager._pushUnlockToast;
+    GlossaryManager._pushUnlockToast = function (typeId, entryId) {
+        $gameTemp.drill_GFTH_TSE_setType(GF.TSE.TYPE.GLOSSARY);
+        GF.TSE.GlossaryManager__pushUnlockToast.call(this, typeId, entryId);
+        $gameTemp.drill_GFTH_TSE_setType(GF.TSE.TYPE.DEFAULT);
+    };
+}
+
+//=============================================================================
 // SE Helper
 //=============================================================================
 
@@ -701,7 +754,7 @@ if (Imported.GF_EasySkillMastery) {
 
     // > 战斗场景 — 批次音效钩子
     //   GF_EasySkillMastery 为 Scene_Battle 添加了完整的 toast 渲染管线，
-    //   但 57_GF_ToastSE 原本只监听 Scene_Map / Scene_MenuBase。
+    //   但 GF_ToastSE 原本只监听 Scene_Map / Scene_MenuBase。
     //   这里给 Scene_Battle 也加上批次音效刷新，确保战斗中精通通知的音效实时播放。
     GF.TSE.Scene_Battle_update = Scene_Battle.prototype.update;
     Scene_Battle.prototype.update = function () {

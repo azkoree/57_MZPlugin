@@ -16,7 +16,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @target MZ
  * @plugindesc [v1.00]        玩法 - 用语词典
  * @author 57 & deepseek
- * @url https://afdian.net/a/ganfly
+ * @url
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_1_CoreOfWindowUI
  *

@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins Compatible
-// 57_Achievement.js
+// WSQ_Achievement.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_Achievement'] = true;
+Imported.WSQ_Achievement = true;
 
 var WSQ = WSQ || {};
 WSQ.ACH = WSQ.ACH || {};
@@ -23,11 +23,11 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_3_ToastSystem
  * @orderAfter GF_3_ToastSystem
- * @url https://afdian.net/a/ganfly
+ * @url
  *
  * @help
  * ============================================================================
- * 成就系统（57_Achievement）
+ * 成就系统（WSQ_Achievement）
  * ============================================================================
  * 基于 DM_Achievement 的功能重写，脱离 DM_Common 依赖，全面适配 GF 插件体系。
  * - UI 全面重构：取消信息窗口，列表项两行布局（图标+名称 / 描述+奖励右对齐）
@@ -849,7 +849,7 @@ WSQ.ACH.pop = function (msg) {
     if (typeof ToastManager !== "undefined" && ToastManager.addText) {
         ToastManager.addText(msg);
     } else if (typeof console !== "undefined") {
-        console.warn("[57_Achievement] ToastSystem 未启用，弹窗内容：", msg);
+        console.warn("[WSQ_Achievement] ToastSystem 未启用，弹窗内容：", msg);
     }
 };
 

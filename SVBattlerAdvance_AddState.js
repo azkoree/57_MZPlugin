@@ -1,9 +1,9 @@
 //=============================================================================
-// 57_SVBattlerAdvance_AddState.js
+// SVBattlerAdvance_AddState.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_SVBattlerAdvance_AddState'] = true;
+Imported.SVBattlerAdvance_AddState = true;
 
 var GF = GF || {};
 GF.ADSV = GF.ADSV || {};
@@ -75,7 +75,7 @@ GF.ADSV.AddState.version = 1.03;
  *   GF_2_CoreOfEnemy
  *   GF_3_ActSeqSystem
  *   SVBattlerAdvance
- *   57_SVBattlerAdvance_AddState（本插件）
+ *   SVBattlerAdvance_AddState（本插件）
  *
  * ============================================================================
  *
@@ -93,7 +93,7 @@ GF.ADSV.AddState.version = 1.03;
 //=============================================================================
 
 (function() {
-    const pluginName = '57_SVBattlerAdvance_AddState';
+    const pluginName = 'SVBattlerAdvance_AddState';
     const parameters = PluginManager.parameters(pluginName);
     const defaultRevertMotion = String(parameters['DefaultRevertMotion'] || '').trim();
 
@@ -398,6 +398,6 @@ GF.ADSV.AddState.version = 1.03;
     // 初始化信息
     //=========================================================================
 
-    console.log('[ADSV_AddState] 57_SVBattlerAdvance_AddState v' + GF.ADSV.AddState.version + ' 已加载。');
+    console.log('[ADSV_AddState] SVBattlerAdvance_AddState v' + GF.ADSV.AddState.version + ' 已加载。');
 
 })();

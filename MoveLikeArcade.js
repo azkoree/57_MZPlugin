@@ -1,9 +1,9 @@
 //=============================================================================
-// 57_MoveLikeArcade.js
+// MoveLikeArcade.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_MoveLikeArcade'] = true;
+Imported.MoveLikeArcade = true;
 
 //=============================================================================
 /*:
@@ -69,7 +69,7 @@ Imported['57_MoveLikeArcade'] = true;
 (() => {
     "use strict";
 
-    const parameters = PluginManager.parameters("57_MoveLikeArcade");
+    const parameters = PluginManager.parameters("MoveLikeArcade");
     const verticalSpeedRatio = Number(parameters["verticalSpeedRatio"] || 0.75);
 
     //=========================================================================

@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// 57_GF_4_BattleActorUICtrl.js
+// GF_4_BattleActorUICtrl.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_GF_4_BattleActorUICtrl'] = true;
+Imported.GF_4_BattleActorUICtrl = true;
 
 var GF = GF || {};
 GF.BAUI = GF.BAUI || {};
@@ -172,7 +172,7 @@ GF.BAUI.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 //=============================================================================
 
 if (!Imported.GF_2_CoreOfBattle) {
-    alert("错误:未找到前置插件 GF_2_CoreOfBattle。\n请确保已安装并启用 GF_2_CoreOfBattle 插件,并将其放置在 57_GF_4_BattleActorUICtrl 插件之前。");
+    alert("错误:未找到前置插件 GF_2_CoreOfBattle。\n请确保已安装并启用 GF_2_CoreOfBattle 插件,并将其放置在 GF_4_BattleActorUICtrl 插件之前。");
 } else if (GF.COB.version < 1.00) {
     alert("错误:前置插件 GF_2_CoreOfBattle 版本过低。\n请升级至最新版本。");
 }

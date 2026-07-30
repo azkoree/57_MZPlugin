@@ -1,9 +1,9 @@
 //=============================================================================
-// 57_FollowerTarget.js
+// FollowerTarget.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_FollowerTarget'] = true;
+Imported.FollowerTarget = true;
 
 //=============================================================================
 /*:
@@ -110,7 +110,7 @@ Imported['57_FollowerTarget'] = true;
 
     const PLUGIN_NAME = document.currentScript
         ? decodeURIComponent(document.currentScript.src.match(/^.*\/(.+)\.js$/)[1])
-        : "57_FollowerTarget";
+        : "FollowerTarget";
 
     // =========================================================================
     // Plugin Command Registration

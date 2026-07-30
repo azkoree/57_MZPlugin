@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// 57_GF_4_BattleSpeedCtrl.js
+// GF_4_BattleSpeedCtrl.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_GF_4_BattleSpeedCtrl'] = true;
+Imported.GF_4_BattleSpeedCtrl = true;
 
 var GF = GF || {};
 GF.BSC = GF.BSC || {};
@@ -16,7 +16,7 @@ GF.BSC.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @target MZ
  * @plugindesc [v1.01]        战斗 - 战斗速度快捷键
  * @author 57 & deepseek
- * @url https://afdian.net/a/ganfly
+ * @url
  * @orderAfter GF_2_CoreOfOption
  * @base GF_2_CoreOfOption
  *
@@ -149,7 +149,7 @@ GF.BSC.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 //=============================================================================
 
 if (!Imported.GF_2_CoreOfOption) {
-    alert("错误:未找到前置插件 GF_2_CoreOfOption。\n请确保已安装并启用 GF_2_CoreOfOption 插件，并将其放置在 57_GF_4_BattleSpeedCtrl 插件之前。");
+    alert("错误:未找到前置插件 GF_2_CoreOfOption。\n请确保已安装并启用 GF_2_CoreOfOption 插件，并将其放置在 GF_4_BattleSpeedCtrl 插件之前。");
 }
 
 //=============================================================================

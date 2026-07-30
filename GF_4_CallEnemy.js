@@ -1,10 +1,10 @@
 //=============================================================================
 // GF Plugins
-// 57_GF_4_CallEnemy.js
+// GF_4_CallEnemy.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported['57_GF_4_CallEnemy'] = true;
+Imported.GF_4_CallEnemy = true;
 
 var GF = GF || {};
 GF.CLE = GF.CLE || {};
@@ -16,7 +16,7 @@ GF.CLE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @target MZ
  * @plugindesc [v1.00]        战斗 - 敌人召唤
  * @author 57 & deepseek
- * @url https://afdian.net/a/ganfly
+ * @url
  * @orderAfter GF_0_CoreOfGame
  * @base GF_0_CoreOfGame
  * @orderAfter GF_2_CoreOfBattle
@@ -340,7 +340,7 @@ CLE.Param.SummonCoodBind = (() => {
             }
         }
     } catch (e) {
-        console.warn('57_GF_4_CallEnemy: SummonCoodBind parse error', e);
+        console.warn('GF_4_CallEnemy: SummonCoodBind parse error', e);
     }
     return data;
 })();
@@ -408,7 +408,7 @@ function CLE_getCallEnemyId(action) {
         if (!subject) return null;
         if (!subject.isEnemy()) {
             // 主角使用此技能时需在注记中明确指定敌人 ID
-            console.warn('57_GF_4_CallEnemy: <CallEnemy> without ID used by non-enemy subject, ignored');
+            console.warn('GF_4_CallEnemy: <CallEnemy> without ID used by non-enemy subject, ignored');
             return null;
         }
         const dataEnemy = subject.enemy();
