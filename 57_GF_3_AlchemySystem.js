@@ -77,7 +77,6 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * 通过插件参数『合成数据文件列表』注册每个数据文件路径。
  *
  *
- *
  * ============================================================================
  * 插件指令
  * ============================================================================
@@ -1917,12 +1916,6 @@ Window_AlchemyCategory.prototype.smoothSelect = function(index) {
     this.updateHelp();
 };
 
-// 确保 select 也触发刷新（兼容性保障）
-Window_AlchemyCategory.prototype.smoothSelect = function(index) {
-    Window_Selectable.prototype.smoothSelect.call(this, index);
-    this.updateHelp();
-};
-
 //=============================================================================
 // Window_AlchemyRecipeList
 //=============================================================================
@@ -2620,6 +2613,18 @@ Scene_Alchemy.prototype.create = function() {
     this._categoryWindow.setHandler('cancel', this.onCategoryCancel.bind(this));
     this.addWindow(this._categoryWindow);
 
+    // 配方详情窗口（必须在配方列表之前创建，以便 setDetailWindow 正确连接）
+    try {
+        this._detailWindow = new Window_AlchemyRecipeDetail();
+        if (this._detailWindow) {
+            this._detailWindow.setMenuType(this._menuType);
+            // 配方数据将在配方列表 setCategory 时通过 updateHelp 自动设置
+            this.addWindow(this._detailWindow);
+        }
+    } catch (e) {
+        console.error('GF_AlchemySystem: 创建详情窗口失败', e);
+    }
+
     // 配方列表窗口
     this._recipeListWindow = new Window_AlchemyRecipeList();
     this._recipeListWindow.setMenuType(this._menuType);
@@ -2630,18 +2635,6 @@ Scene_Alchemy.prototype.create = function() {
     this._recipeListWindow.setDetailWindow(this._detailWindow);
     this.addWindow(this._recipeListWindow);
     this._categoryWindow.setRecipeListWindow(this._recipeListWindow);
-
-    // 配方详情窗口
-    try {
-        this._detailWindow = new Window_AlchemyRecipeDetail();
-        if (this._detailWindow) {
-            this._detailWindow.setMenuType(this._menuType);
-            this._detailWindow.setRecipe(this._recipeListWindow.recipe());
-            this.addWindow(this._detailWindow);
-        }
-    } catch (e) {
-        console.error('GF_AlchemySystem: 创建详情窗口失败', e);
-    }
 
     // 金币窗口（可选）
     if (GF.AHS.param.ShowGoldWindow) {
@@ -2706,7 +2699,12 @@ Scene_Alchemy.prototype.onRecipeOk = function() {
     }
     // 打开数量选择
     this._recipeListWindow.deactivate();
+    // 保存当前配方索引，防止 category.deactivate 的副作用将其重置为 0
+    const savedRecipeIndex = this._recipeListWindow.index();
     if (this._categoryWindow) this._categoryWindow.deactivate();
+    // 恢复配方列表索引（category.deactivate → reselect → callUpdateHelp → updateHelp
+    // → setCategory → select(0) 会覆盖配方列表的当前索引）
+    this._recipeListWindow.select(savedRecipeIndex);
     this._numberInputWindow.setup(this._menuType, recipe,
         this.onConfirmCraft.bind(this),
         this.onCancelCraft.bind(this)
@@ -2721,11 +2719,14 @@ Scene_Alchemy.prototype.onConfirmCraft = function(count) {
     this._recipeListWindow.refresh();
     if (this._detailWindow) this._detailWindow.refresh();
     this.updateGoldWindow();
+    // 清除输入状态，避免残留的 OK 触发重新激活后的配方列表
+    Input.clear();
     this._recipeListWindow.activate();
 };
 
 Scene_Alchemy.prototype.onCancelCraft = function() {
     this._numberInputWindow.close();
+    Input.clear();
     this._recipeListWindow.activate();
 };
 
