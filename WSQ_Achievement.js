@@ -13,7 +13,7 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 /*:
  * @target MZ
- * @author 57 & deepseek
+ * @author WSQ
  * @plugindesc [v1.00]        系统 - 成就系统（GF适配版，脱离DM_Common）
  * @base GF_0_CoreOfGame
  * @orderAfter GF_0_CoreOfGame
@@ -23,7 +23,7 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_3_ToastSystem
  * @orderAfter GF_3_ToastSystem
- * @url
+ * @url https://afdian.net/a/ganfly
  *
  * @help
  * ============================================================================
@@ -34,6 +34,7 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * - 分类系统：取消按完成情况筛选，改为插件参数自由配置的成就分类
  * - 弹窗提示：使用 GF_3_ToastSystem（ToastManager.addText）
  * - 窗口管线：全部走 GF 的 processInitParam，支持窗口移动动画与皮肤
+ * - 分类模式：支持窗口分类列表与精灵按钮分类（通过「分类显示模式」参数切换）
  *
  * 使用步骤：
  * 1. 在「成就分类」参数中配置自定义分类（如：战斗、探索、收集）。
@@ -48,7 +49,7 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * 前置需求
  * ============================================================================
  * - GF_0_CoreOfGame（第0层，金币图标与物品控制符）
- * - GF_1_CoreOfSpriteUI（第1层，精灵核心）
+ * - GF_1_CoreOfSpriteUI（第1层，精灵核心；按钮分类模式需要，窗口模式不需要）
  * - GF_1_CoreOfWindowUI（第1层，窗口核心：processInitParam / setupWindowInitParam）
  * - GF_3_ToastSystem（第3层，成就解锁弹窗提示）
  * 本插件位于第4层，需放在上述插件之后。
@@ -58,6 +59,8 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * ============================================================================
  * - 不依赖 DM_Common，可与 DM_Achievement 同时存在（但建议二选一避免重复统计）。
  * - 若旧存档来自 DM_Achievement，统计值与领取记录字段名一致，可平滑继承。
+ * - 按钮分类模式需要 GF_1_CoreOfSpriteUI 支持（插件已在依赖中声明），
+ *   若未正确加载会自动回退到窗口模式。
  *
  * ============================================================================
  * 备注（notetag）
@@ -271,6 +274,12 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 成就达成后"已完成！"的文字颜色（0-31，3=绿色）
  * @default 3
  *
+ * @param showProgressLabel
+ * @text 显示统计字段名
+ * @type boolean
+ * @default true
+ * @desc 单条件成就的进度前面显示统计字段的名称（如：击杀怪物数: 15/20）
+ *
  * @param showPopup
  * @text 成就解锁弹窗
  * @type boolean
@@ -289,6 +298,27 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @dir audio/se/
  * @desc 达成成就时播放的提示音
  * @default Bell3
+ *
+ * @param CategoryMode
+ * @text 分类显示模式
+ * @type select
+ * @option 窗口
+ * @option 按钮
+ * @desc 选择分类的显示方式。"窗口"使用传统窗口列表；"按钮"使用精灵核心的按钮组（需加载 GF_1_CoreOfSpriteUI）。
+ * @default 窗口
+ *
+ * @param CategoryButtonSet
+ * @text 分类按钮总体设置
+ * @type struct<AchCategoryButtonSet>
+ * @desc 按钮模式下分类按钮组的总体设置（位置、样式、贴图）。
+ * @default {"ButtonSetX":"0","ButtonSetY":"0","ButtonSetStyle":"1","ButtonBitmapNum":"1","ButtonBackBitmap":"","ButtonSetBitmap":""}
+ *
+ * @param CategoryButtonList
+ * @text 分类按钮贴图覆盖
+ * @type struct<AchCategoryButtons>[]
+ * @desc 【可选】为特定分类指定自定义按钮贴图。不配置则全部使用默认按钮贴图。
+ *       分类按钮会自动从成就分类配置中检测可用分类生成。
+ * @default []
  *
  */
 
@@ -802,6 +832,80 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @default 0
  *
  */
+/* ---------------------------------------------------------------------------
+ * struct<AchCategoryButtonSet>
+ * --------------------------------------------------------------------------- */
+/*~struct~AchCategoryButtonSet:
+ *
+ * @param ButtonSetX
+ * @text 平移-按钮组 X
+ * @desc x轴方向平移，单位像素。0为贴在最左边。
+ * @default 0
+ *
+ * @param ButtonSetY
+ * @text 平移-按钮组 Y
+ * @desc y轴方向平移，单位像素。0为贴在最上面。
+ * @default 0
+ *
+ * @param ButtonSetStyle
+ * @text 按钮组样式
+ * @type number
+ * @min 1
+ * @desc 按钮组对应的样式配置，对应 GF_1_CoreOfSpriteUI 按钮组核心 的样式id。
+ * @default 1
+ *
+ * @param ButtonBitmapNum
+ * @text 按钮贴图分割数量
+ * @type number
+ * @min 1
+ * @max 3
+ * @desc 按钮贴图分割数量，为2时，上面1/2代表常态按钮，下面1/2代表被选中/激活的按钮，
+ *       为3时每1/3分别代表常态、选中、激活。
+ * @default 1
+ *
+ * @param ButtonBackBitmap
+ * @text 按钮组背景
+ * @type file
+ * @dir img/
+ * @require 1
+ * @desc 按钮组的整体背景
+ * @default
+ *
+ * @param ButtonSetBitmap
+ * @text 默认按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 默认按钮的图片资源。
+ * @default
+ *
+ */
+/* ---------------------------------------------------------------------------
+ * struct<AchCategoryButtons>
+ * --------------------------------------------------------------------------- */
+/*~struct~AchCategoryButtons:
+ *
+ * @param Note
+ * @text 标签
+ * @desc 只用于方便区分查看的标签，不作用在插件中。
+ * @default --新的分类按钮--
+ *
+ * @param Symbol
+ * @text 关键字
+ * @type combo
+ * @option all
+ * @desc 分类标识，对应「成就分类」参数中的id（如 battle、explore、collect 或自定义分类ID）。"all"用于"全部"分类。
+ * @default all
+ *
+ * @param Bitmap
+ * @text 按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 该分类的自定义按钮贴图。不填则使用默认按钮贴图。
+ * @default
+ *
+ */
 
 // ============================================================================
 // 参数解析工具（替代 DM_Common 的 deepParse / parseEscapeCharacters / parseArg / pop）
@@ -916,6 +1020,33 @@ WSQ.ACH.systemStatDisplayNames = {
     consecutiveBattles: "连续战斗次数"
 };
 
+// 根据统计键名获取显示名称
+WSQ.ACH.getStatDisplayName = function (key) {
+    if (!key) return key;
+    // 1. 系统统计字段
+    if (WSQ.ACH.systemStatDisplayNames[key]) {
+        return WSQ.ACH.systemStatDisplayNames[key];
+    }
+    // 2. 自定义统计字段
+    const customStats = WSQ.Param.ACH.statsConfig || [];
+    for (let i = 0; i < customStats.length; i++) {
+        if (customStats[i].keyName === key) {
+            return customStats[i].displayName || key;
+        }
+    }
+    // 3. 带后缀的对象统计（如 defeatedMonsters7 → 击败幽灵 等）
+    const baseKey = key.replace(/\d+$/g, '');
+    if (baseKey !== key) {
+        const baseName = WSQ.ACH.getStatDisplayName(baseKey);
+        if (baseName) {
+            const suffix = key.slice(baseKey.length);
+            return baseName + suffix;
+        }
+    }
+    // 4. 回退：用键名自身
+    return key;
+};
+
 // 判断数据库对象是否带有 <WSQ_ACH> / <成就统计> 备注标签
 WSQ.ACH.hasAchNote = function (obj) {
     if (!obj || !obj.meta) return false;
@@ -1018,11 +1149,17 @@ WSQ.ACH.buildRewardSummary = function (rule, stats) {
 WSQ.ACH.buildProgressText = function (rule, stats) {
     const conds = rule.condition || [];
     if (conds.length === 0) return "";
+    const showLabel = WSQ.Param.ACH.showProgressLabel;
     if (conds.length === 1) {
         const cond = conds[0];
         const current = stats[cond.id] || 0;
         const target = Number(cond.value) || 0;
-        return `${current}/${target}`;
+        const progress = `${current}/${target}`;
+        if (showLabel) {
+            const label = WSQ.ACH.getStatDisplayName(cond.id);
+            return `${label}: ${progress}`;
+        }
+        return progress;
     }
     const met = conds.filter(cond => {
         const current = stats[cond.id] || 0;
@@ -1545,14 +1682,28 @@ class Scene_Achievement extends Scene_MenuBase {
         this.setBackgroundOpacity(bg.Opacity != null ? bg.Opacity : 192);
     }
 
+    get useButtonMode() {
+        const mode = String(WSQ.Param.ACH.CategoryMode || '窗口');
+        return mode === '按钮' && typeof Sprite_CommandWindow !== 'undefined';
+    }
+
     createCategoryWindow() {
-        const set = WSQ.Param.ACH.categoryWindow;
-        this._categoryWindow = new Window_AchievementCategory(set);
-        this._categoryWindow.setHandler("ok", this.onCategoryOk.bind(this));
-        this._categoryWindow.setHandler("cancel", this.popScene.bind(this));
-        this._categoryWindow.activate();
-        this._categoryWindow.select(0);
-        this.addChild(this._categoryWindow);
+        if (this.useButtonMode) {
+            this._categoryWidget = new Sprite_AchievementCategory();
+            this._categoryWidget.setHandler('ok', this.onCategoryOk.bind(this));
+            this._categoryWidget.setHandler('cancel', this.onCategoryCancel.bind(this));
+        } else {
+            const set = WSQ.Param.ACH.categoryWindow;
+            this._categoryWidget = new Window_AchievementCategory(set);
+            this._categoryWidget.setHandler('ok', this.onCategoryOk.bind(this));
+            this._categoryWidget.setHandler('cancel', this.popScene.bind(this));
+        }
+        this.addChild(this._categoryWidget);
+        // 按钮模式下分类不获取焦点（点击事件由精灵按钮处理），窗口模式下激活
+        if (!this.useButtonMode) {
+            this._categoryWidget.activate();
+            this._categoryWidget.select(0);
+        }
     }
 
     createListWindow() {
@@ -1560,25 +1711,49 @@ class Scene_Achievement extends Scene_MenuBase {
         this._listWindow = new Window_AchievementList(set);
         this._listWindow.setHandler("ok", this.onListOk.bind(this));
         this._listWindow.setHandler("cancel", this.onListCancel.bind(this));
-        this._listWindow.deactivate();
-        this._listWindow.deselect();
         this.addChild(this._listWindow);
-        // 初始用分类窗口当前选中项过滤
-        this._listWindow.setCategory(this._categoryWindow.currentSymbol());
+        // 初始用分类控件当前选中项过滤
+        this._listWindow.setCategory(this._categoryWidget.categoryId());
+        // 窗口模式下：分类窗口光标移动时自动刷新列表
+        if (!this.useButtonMode && typeof this._categoryWidget.setListWindow === 'function') {
+            this._categoryWidget.setListWindow(this._listWindow);
+        }
+        // 按钮模式下列表窗口一开始就获取焦点；窗口模式下列表窗口等待分类确定
+        if (this.useButtonMode) {
+            this._listWindow.activate();
+            this._listWindow.select(0);
+        } else {
+            this._listWindow.deactivate();
+            this._listWindow.deselect();
+        }
     }
 
     onCategoryOk() {
-        const symbol = this._categoryWindow.currentSymbol();
+        const symbol = this._categoryWidget.categoryId();
         this._listWindow.setCategory(symbol);
         this._listWindow.activate();
         this._listWindow.select(0);
-        this._categoryWindow.deactivate();
+        if (!this.useButtonMode) {
+            this._categoryWidget.deactivate();
+        }
+    }
+
+    onCategoryCancel() {
+        // 按钮模式下分类取消即退出；窗口模式已使用 popScene
+        if (this.useButtonMode) {
+            this.popScene();
+        }
     }
 
     onListCancel() {
-        this._listWindow.deactivate();
-        this._listWindow.deselect();
-        this._categoryWindow.activate();
+        if (this.useButtonMode) {
+            // 按钮模式：列表取消直接退出
+            this.popScene();
+        } else {
+            this._listWindow.deactivate();
+            this._listWindow.deselect();
+            this._categoryWidget.activate();
+        }
     }
 
     onListOk() {
@@ -1618,6 +1793,24 @@ class Window_AchievementCategory extends Window_Command {
                 this.addCommand(c.name || c.id, c.id);
             }
         });
+    }
+
+    categoryId() {
+        return this.currentSymbol() || 'all';
+    }
+
+    setListWindow(listWindow) {
+        this._listWindow = listWindow;
+    }
+
+    updateHelp() {
+        if (this._listWindow) {
+            this._listWindow.setCategory(this.categoryId());
+        }
+    }
+
+    callUpdateHelp() {
+        this.updateHelp();
     }
 }
 
@@ -1775,6 +1968,87 @@ class Window_AchievementList extends Window_Selectable {
 
     isCurrentItemEnabled() {
         return this.isEnabled(this.itemAt(this.index()));
+    }
+}
+
+// ----------------------------------------------------------------------------
+// 按钮式分类精灵（按钮模式）
+// ----------------------------------------------------------------------------
+class Sprite_AchievementCategory extends Sprite_CommandWindow {
+    initialize() {
+        const btnSet = WSQ.Param.ACH.CategoryButtonSet;
+        // 构建贴图覆盖查找表
+        this._bitmapOverrides = {};
+        const overrideList = WSQ.Param.ACH.CategoryButtonList || [];
+        for (let i = 0; i < overrideList.length; i++) {
+            const entry = overrideList[i];
+            if (entry && entry.Symbol) {
+                this._bitmapOverrides[entry.Symbol] = entry.Bitmap || '';
+            }
+        }
+        const data = JsonEx.makeDeepCopy(GF.COSU.SpriteButtonSetList[btnSet.ButtonSetStyle] || {});
+        data.x = btnSet.ButtonSetX;
+        data.y = btnSet.ButtonSetY;
+        data.btn_src_default = btnSet.ButtonSetBitmap;
+        data.btn_bitmap_num = btnSet.ButtonBitmapNum;
+        data['back_bitmap'] = btnSet.ButtonBackBitmap;
+        data.btn_paramList = this._bitmapOverrides;
+        super.initialize(data);
+        this._index = 0;
+    }
+
+    extractBtnParamList(bitmapOverrides) {
+        const paramList = [];
+        // "全部"分类
+        const allParam = {
+            symbol: 'all',
+            bitmap: (bitmapOverrides && bitmapOverrides['all']) || '',
+            name: '全部',
+            enable: true,
+            ext: null
+        };
+        paramList.push(allParam);
+        // 自定义分类
+        const cats = WSQ.Param.ACH.categoryConfig || [];
+        for (let i = 0; i < cats.length; i++) {
+            const cat = cats[i];
+            if (!cat.id || cat.id === 'all') continue;
+            const param = {
+                symbol: cat.id,
+                bitmap: (bitmapOverrides && bitmapOverrides[cat.id]) || '',
+                name: cat.name || cat.id,
+                enable: true,
+                ext: null
+            };
+            paramList.push(param);
+        }
+        return paramList;
+    }
+
+    categoryId() {
+        return this.currentSymbol() || 'all';
+    }
+
+    currentCategoryId() {
+        return this.categoryId();
+    }
+
+    // --- 兼容 Window 接口 ---
+    resetInitParamData() {}
+
+    createNameSprite() {}
+    refreshNameSprite() {}
+    canSelectAndOk() { return true; }
+    canExCusorMove() { return true; }
+    canHandling() { return true; }
+
+    update() {
+        if (!this._commands || this._commands.length === 0) {
+            this._index = -1;
+        }
+        if (typeof Sprite_CommandWindow.prototype.update === 'function') {
+            Sprite_CommandWindow.prototype.update.call(this);
+        }
     }
 }
 

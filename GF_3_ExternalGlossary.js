@@ -15,7 +15,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        玩法 - 用语词典
- * @author 57 & deepseek
+ * @author 57拷打ai写
  * @url 
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_1_CoreOfWindowUI
@@ -47,6 +47,13 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * ---- 前置插件列表 ----
  *
  * GF_1_CoreOfWindowUI        系统 - 窗口UI核心
+ *
+ * ---- 可选前置插件 ----
+ *
+ * GF_1_CoreOfSpriteUI        系统 - 精灵核心
+ *
+ *     如果插件参数「分类显示模式」设置为"按钮"，则必须加载此插件以使用
+ *     精灵按钮组功能。设置为"窗口"（默认）则不需要此插件。
  *
  * ---- 第3层 ----
  *
@@ -308,6 +315,14 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 条目编号
  * @default 1
  *
+ * @arg ShowPopup
+ * @text 弹出阅读窗口
+ * @type boolean
+ * @on 弹出
+ * @off 不弹出
+ * @desc 解锁后是否弹出阅读窗口显示条目内容。仅在解锁时有效，不受插件参数默认设置的影响。
+ * @default false
+ *
  * @ --------------------------------------------------------------------------
  *
  * @command LockEntry
@@ -544,11 +559,77 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 文本触碰到窗口边缘时是否自动换行。
  * @default true
  *
+ * @param HideEmptyGlossary
+ * @text 隐藏无解锁条目的词典
+ * @parent GeneralSet
+ * @type boolean
+ * @on 隐藏
+ * @off 始终显示
+ * @desc 词典选择界面中，没有任何已解锁条目的词典自动隐藏不显示。
+ * @default false
+ *
+ * @param HideEmptyCategory
+ * @text 隐藏无解锁条目的分类
+ * @parent GeneralSet
+ * @type boolean
+ * @on 隐藏
+ * @off 始终显示
+ * @desc 分类选择界面中，没有任何已解锁条目的分类自动隐藏不显示。
+ * @default false
+ *
  * @param CompleteMsgFormat
  * @text 收集率消息格式
  * @parent GeneralSet
  * @desc 收集率显示文本，%1 表示百分比。
  * @default 收集率 %1％
+ *
+ * @param CategoryMode
+ * @text 分类显示模式
+ * @parent GeneralSet
+ * @type select
+ * @option 窗口
+ * @option 按钮
+ * @desc 选择分类的显示方式。"窗口"使用传统窗口列表；"按钮"使用精灵核心的按钮组（需加载 GF_1_CoreOfSpriteUI）。
+ * @default 窗口
+ *
+ * @param CategoryButtonSet
+ * @text 分类按钮总体设置
+ * @parent GeneralSet
+ * @type struct<GlossaryCategoryButtonSet>
+ * @desc 按钮模式下分类按钮组的总体设置（位置、样式、贴图）。
+ * @default {"ButtonSetX":"0","ButtonSetY":"0","ButtonSetStyle":"1","ButtonBitmapNum":"1","ButtonBackBitmap":"","ButtonSetBitmap":""}
+ *
+ * @param CategoryButtonList
+ * @text 分类按钮贴图覆盖
+ * @parent GeneralSet
+ * @type struct<GlossaryCategoryButtons>[]
+ * @desc 【可选】为特定分类指定自定义按钮贴图。不配置则全部使用默认按钮贴图。
+ *       分类按钮会自动从词典分类数据中检测可用分类生成。
+ * @default []
+ *
+ * @param GlossaryListMode
+ * @text 词典列表显示模式
+ * @parent GeneralSet
+ * @type select
+ * @option 窗口
+ * @option 按钮
+ * @desc 选择词典选择列表的显示方式。"窗口"使用传统窗口列表；"按钮"使用精灵核心的按钮组（需加载 GF_1_CoreOfSpriteUI）。
+ * @default 窗口
+ *
+ * @param GlossaryListButtonSet
+ * @text 词典列表按钮总体设置
+ * @parent GeneralSet
+ * @type struct<GlossaryListButtonSet>
+ * @desc 按钮模式下词典列表按钮组的总体设置（位置、样式、贴图）。
+ * @default {"ButtonSetX":"0","ButtonSetY":"0","ButtonSetStyle":"1","ButtonBitmapNum":"1","ButtonBackBitmap":"","ButtonSetBitmap":""}
+ *
+ * @param GlossaryListButtonList
+ * @text 词典列表按钮贴图覆盖
+ * @parent GeneralSet
+ * @type struct<GlossaryListButtons>[]
+ * @desc 【可选】为特定词典指定自定义按钮贴图。不配置则全部使用默认按钮贴图。
+ *       词典按钮会自动从已加载的词典类型中生成。
+ * @default []
  *
  * @param TextSet
  * @text ====用语设置====
@@ -664,6 +745,25 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @min 0
  * @desc 只有此开关开启时才触发自动解锁。0为无条件。
  * @default 0
+ *
+ * @param ReadingPopupSet
+ * @text ====阅读弹窗设置====
+ *
+ * @param EnableReadingPopup
+ * @text 启用阅读弹窗
+ * @parent ReadingPopupSet
+ * @type boolean
+ * @on 启用
+ * @off 禁用
+ * @desc 启用后，解锁条目时弹出阅读窗口模拟发现阅读物的过程。对话自动解锁时是否弹出受此参数控制。
+ * @default false
+ *
+ * @param ReadingPopupWindowSet
+ * @text 阅读弹窗设置
+ * @parent ReadingPopupSet
+ * @type struct<GlossaryWindowSet>
+ * @desc 阅读弹窗的窗口设置（位置、大小、字体、动画、背景）。
+ * @default {"WindowX":"200","WindowY":"100","WindowWidth":"880","WindowHeight":"520","WindowFontSize":"22","WindowFontFace":"","WindowLineHeight":"36","WindowMoving":"{\"MoveType\":\"不移动\",\"MoveTime\":\"20\",\"MoveDelay\":\"0\",\"OpacityLock\":\"false\",\"StartPoint\":\"\",\"CoordinateType\":\"相对坐标\",\"SlideX\":\"0\",\"SlideY\":\"0\",\"SlideAbsoluteX\":\"0\",\"SlideAbsoluteY\":\"0\"}","WindowLayout":"{\"LayoutType\":\"默认皮肤\",\"Background\":\"\",\"BackgroundFile\":\"\",\"BackgroundX\":\"0\",\"BackgroundY\":\"0\"}"}
  *
  * @param MenuSet
  * @text ====词典菜单设置====
@@ -972,6 +1072,154 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @default 0
  *
  */
+/* ---------------------------------------------------------------------------
+ * struct<GlossaryCategoryButtonSet>
+ * ---------------------------------------------------------------------------
+ */
+/*~struct~GlossaryCategoryButtonSet:
+ *
+ * @param ButtonSetX
+ * @text 平移-按钮组 X
+ * @desc x轴方向平移，单位像素。0为贴在最左边。
+ * @default 0
+ *
+ * @param ButtonSetY
+ * @text 平移-按钮组 Y
+ * @desc y轴方向平移，单位像素。0为贴在最上面。
+ * @default 0
+ *
+ * @param ButtonSetStyle
+ * @text 按钮组样式
+ * @type number
+ * @min 1
+ * @desc 按钮组对应的样式配置，对应 GF_1_CoreOfSpriteUI 按钮组核心 的样式id。
+ * @default 1
+ *
+ * @param ButtonBitmapNum
+ * @text 按钮贴图分割数量
+ * @type number
+ * @min 1
+ * @max 3
+ * @desc 按钮贴图分割数量，为2时，上面1/2代表常态按钮，下面1/2代表被选中/激活的按钮，
+ *       为3时每1/3分别代表常态、选中、激活。
+ * @default 1
+ *
+ * @param ButtonBackBitmap
+ * @text 按钮组背景
+ * @type file
+ * @dir img/
+ * @require 1
+ * @desc 按钮组的整体背景
+ * @default
+ *
+ * @param ButtonSetBitmap
+ * @text 默认按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 默认按钮的图片资源。
+ * @default
+ *
+ */
+/* ---------------------------------------------------------------------------
+ * struct<GlossaryCategoryButtons>
+ * ---------------------------------------------------------------------------
+ */
+/*~struct~GlossaryCategoryButtons:
+ *
+ * @param Note
+ * @text 标签
+ * @desc 只用于方便区分查看的标签，不作用在插件中。
+ * @default --新的分类按钮--
+ *
+ * @param Symbol
+ * @text 关键字
+ * @desc 分类标识，对应词典数据中的分类ID（如自定义分类ID，或自动分类标识）。
+ * @default all
+ *
+ * @param Bitmap
+ * @text 按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 该分类的自定义按钮贴图。不填则使用默认按钮贴图。
+ * @default
+ *
+ */
+/* ---------------------------------------------------------------------------
+ * struct<GlossaryListButtonSet>
+ * ---------------------------------------------------------------------------
+ */
+/*~struct~GlossaryListButtonSet:
+ *
+ * @param ButtonSetX
+ * @text 平移-按钮组 X
+ * @desc x轴方向平移，单位像素。0为贴在最左边。
+ * @default 0
+ *
+ * @param ButtonSetY
+ * @text 平移-按钮组 Y
+ * @desc y轴方向平移，单位像素。0为贴在最上面。
+ * @default 0
+ *
+ * @param ButtonSetStyle
+ * @text 按钮组样式
+ * @type number
+ * @min 1
+ * @desc 按钮组对应的样式配置，对应 GF_1_CoreOfSpriteUI 按钮组核心 的样式id。
+ * @default 1
+ *
+ * @param ButtonBitmapNum
+ * @text 按钮贴图分割数量
+ * @type number
+ * @min 1
+ * @max 3
+ * @desc 按钮贴图分割数量，为2时，上面1/2代表常态按钮，下面1/2代表被选中/激活的按钮，
+ *       为3时每1/3分别代表常态、选中、激活。
+ * @default 1
+ *
+ * @param ButtonBackBitmap
+ * @text 按钮组背景
+ * @type file
+ * @dir img/
+ * @require 1
+ * @desc 按钮组的整体背景
+ * @default
+ *
+ * @param ButtonSetBitmap
+ * @text 默认按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 默认按钮的图片资源。
+ * @default
+ *
+ */
+/* ---------------------------------------------------------------------------
+ * struct<GlossaryListButtons>
+ * ---------------------------------------------------------------------------
+ */
+/*~struct~GlossaryListButtons:
+ *
+ * @param Note
+ * @text 标签
+ * @desc 只用于方便区分查看的标签，不作用在插件中。
+ * @default --新的词典按钮--
+ *
+ * @param Symbol
+ * @text 关键字
+ * @desc 词典类型编号（字符串形式，如 "1"、"2"）。
+ * @default 1
+ *
+ * @param Bitmap
+ * @text 按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 该词典的自定义按钮贴图。不填则使用默认按钮贴图。
+ * @default
+ *
+ */
 
 //=============================================================================
 // 插件代码
@@ -1009,6 +1257,60 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     GF.Param.GGMAutoLineWrap = eval(GF.Parameters['AutoLineWrap'] || 'true');
     GF.Param.GGMCompleteMsgFormat = String(GF.Parameters['CompleteMsgFormat'] || '收集率 %1％');
 
+    // ---- 隐藏空词典/空分类 ----
+    GF.Param.GGMHideEmptyGlossary = eval(GF.Parameters['HideEmptyGlossary'] || 'false');
+    GF.Param.GGMHideEmptyCategory = eval(GF.Parameters['HideEmptyCategory'] || 'false');
+
+    // ---- 分类显示模式 ----
+    GF.Param.GGMCategoryMode = String(GF.Parameters['CategoryMode'] || '窗口');
+    GF.Param.GGMCategoryButtonSet = (() => {
+        const set = JSON.parse(GF.Parameters['CategoryButtonSet'] || '{}');
+        return {
+            ButtonSetX: Number(set.ButtonSetX || 0),
+            ButtonSetY: Number(set.ButtonSetY || 0),
+            ButtonSetStyle: Number(set.ButtonSetStyle || 1),
+            ButtonBitmapNum: Number(set.ButtonBitmapNum || 1),
+            ButtonBackBitmap: String(set.ButtonBackBitmap || ''),
+            ButtonSetBitmap: String(set.ButtonSetBitmap || '')
+        };
+    })();
+    GF.Param.GGMCategoryButtonList = (() => {
+        const raw = GF.Parameters['CategoryButtonList'] || '[]';
+        try {
+            return JSON.parse(raw).map(entry => {
+                const obj = typeof entry === 'string' ? JSON.parse(entry) : entry;
+                return { Symbol: String(obj.Symbol || 'all'), Bitmap: String(obj.Bitmap || '') };
+            });
+        } catch (e) {
+            return [];
+        }
+    })();
+
+    // ---- 词典列表显示模式 ----
+    GF.Param.GGMGlossaryListMode = String(GF.Parameters['GlossaryListMode'] || '窗口');
+    GF.Param.GGMGlossaryListButtonSet = (() => {
+        const set = JSON.parse(GF.Parameters['GlossaryListButtonSet'] || '{}');
+        return {
+            ButtonSetX: Number(set.ButtonSetX || 0),
+            ButtonSetY: Number(set.ButtonSetY || 0),
+            ButtonSetStyle: Number(set.ButtonSetStyle || 1),
+            ButtonBitmapNum: Number(set.ButtonBitmapNum || 1),
+            ButtonBackBitmap: String(set.ButtonBackBitmap || ''),
+            ButtonSetBitmap: String(set.ButtonSetBitmap || '')
+        };
+    })();
+    GF.Param.GGMGlossaryListButtonList = (() => {
+        const raw = GF.Parameters['GlossaryListButtonList'] || '[]';
+        try {
+            return JSON.parse(raw).map(entry => {
+                const obj = typeof entry === 'string' ? JSON.parse(entry) : entry;
+                return { Symbol: String(obj.Symbol || '1'), Bitmap: String(obj.Bitmap || '') };
+            });
+        } catch (e) {
+            return [];
+        }
+    })();
+
     // ---- 用语设置 ----
     GF.Param.GGMOngoingText = String(GF.Parameters['OngoingText'] || '已解锁');
     GF.Param.GGMLockedText = String(GF.Parameters['LockedText'] || '???');
@@ -1027,6 +1329,12 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     // ---- 对话自动解锁 ----
     GF.Param.GGMDialogueAutoUnlock = eval(GF.Parameters['DialogueAutoUnlock'] || 'true');
     GF.Param.GGMDialogueAutoUnlockSwitchId = Number(GF.Parameters['DialogueAutoUnlockSwitchId'] || 0);
+
+    // ---- 阅读弹窗设置 ----
+    GF.Param.GGMEnableReadingPopup = eval(GF.Parameters['EnableReadingPopup'] || 'false');
+    GF.Param.GGMReadingPopupWindowSet = DataManager.setupWindowInitParam(
+        JSON.parse(GF.Parameters['ReadingPopupWindowSet'] || '{}')
+    );
 
     // ---- 窗口设置 ----
     GF.Param.GGMHelpWindowSet = DataManager.setupWindowInitParam(
@@ -1190,6 +1498,25 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             return Object.keys($dataGlossaries).map(Number).sort((a, b) => a - b);
         }
 
+        /**
+         * 获取有已解锁条目的词典类型列表
+         */
+        static getVisibleGlossaryTypes() {
+            if (!GF.Param.GGMHideEmptyGlossary) return this.getGlossaryTypes();
+            const allTypes = this.getGlossaryTypes();
+            return allTypes.filter(typeId => this.hasUnlockedEntries(typeId, null));
+        }
+
+        /**
+         * 检查指定分类下是否有已解锁条目
+         * @param {number} typeId 词典类型
+         * @param {string|null} categoryId 分类ID，null 表示检查全词典
+         */
+        static hasUnlockedEntries(typeId, categoryId) {
+            const entries = this.entryList(typeId, categoryId);
+            return entries.some(e => this.isUnlocked(typeId, e.id));
+        }
+
         static getGlossaryCount() {
             return Object.keys($dataGlossaries).length;
         }
@@ -1252,12 +1579,15 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             if (!entry) return false;
             const condition = entry.unlockCondition;
             if (!condition || condition.type === 'none' || condition.type === 'auto') {
-                return true; // 无条件时默认解锁
+                return $gameSystem.glossaryUnlocked(typeId, entryId);
             }
             return $gameSystem.glossaryUnlocked(typeId, entryId);
         }
 
         static setUnlocked(typeId, entryId, unlocked) {
+            // 在触发任何可能重置 _glossaryUnlockSource 的操作前保存来源
+            const unlockSource = $gameTemp._glossaryUnlockSource || 'manual';
+
             $gameSystem.setGlossaryUnlocked(typeId, entryId, unlocked);
             const entry = this.getEntry(typeId, entryId);
             if (entry && entry.unlockCondition) {
@@ -1274,6 +1604,45 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             if (unlocked && Imported.GF_3_ToastSystem) {
                 this._pushUnlockToast(typeId, entryId);
             }
+            // 阅读弹窗 — 解锁时弹出（放在 toast 之后，但使用提前保存的来源信息）
+            if (unlocked) {
+                this._triggerReadingPopup(typeId, entryId, unlockSource);
+            }
+        }
+
+        /**
+         * 触发阅读弹窗（由 setUnlocked 内部调用）
+         * @param {number} typeId 词典类型ID
+         * @param {number} entryId 条目ID
+         * @param {string} unlockSource 解锁来源 ('auto'|'manual')
+         */
+        static _triggerReadingPopup(typeId, entryId, unlockSource) {
+            // 检查是否有强制弹窗标记（插件指令传入）
+            if ($gameTemp._glossaryReadingForcePopup) {
+                $gameTemp._glossaryReadingForcePopup = false;
+                this.openReadingPopup(typeId, entryId);
+                return;
+            }
+            // 对话自动解锁：受插件参数控制
+            if (unlockSource === 'auto') {
+                if (GF.Param.GGMEnableReadingPopup) {
+                    this.openReadingPopup(typeId, entryId);
+                }
+                return;
+            }
+            // 手动解锁（脚本/其他插件指令调用）：默认不弹窗
+        }
+
+        /**
+         * 打开阅读弹窗场景
+         * @param {number} typeId 词典类型ID
+         * @param {number} entryId 条目ID
+         */
+        static openReadingPopup(typeId, entryId) {
+            // 截取当前屏幕作为背景（RMMZ 标准方法）
+            SceneManager.snapForBackground();
+            $gameTemp._glossaryReadingData = { typeId: typeId, entryId: entryId };
+            SceneManager.push(Scene_GFGlossaryReading);
         }
 
         static _pushUnlockToast(typeId, entryId) {
@@ -1359,11 +1728,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             if (!entry) return false;
             const condition = entry.unlockCondition;
             if (!condition || condition.type === 'none' || condition.type === 'auto') {
-                if (!$gameSystem.glossaryUnlocked(typeId, entryId)) {
-                    $gameTemp._glossaryUnlockSource = 'auto';
-                    this.setUnlocked(typeId, entryId, true);
-                }
-                return true;
+                return $gameSystem.glossaryUnlocked(typeId, entryId);
             }
             let unlocked = false;
             switch (condition.type) {
@@ -1535,6 +1900,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     Game_Temp.prototype.initialize = function () {
         GF.GGM.Game_Temp_initialize.call(this);
         this._glossaryUnlockSource = 'none'; // 'none' | 'auto' | 'manual'
+        this._glossaryReadingData = null;    // { typeId, entryId } 阅读弹窗数据
+        this._glossaryReadingForcePopup = false; // true 表示强制弹出阅读窗口
     };
 
     //=========================================================================
@@ -1587,7 +1954,11 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     PluginManager.registerCommand(GF.GGM.pluginName, 'UnlockEntry', args => {
         const typeId = Number(args.TypeId) || 1;
         const entryId = Number(args.EntryId) || 1;
+        const showPopup = (String(args.ShowPopup) === 'true');
         $gameTemp._glossaryUnlockSource = 'manual';
+        if (showPopup) {
+            $gameTemp._glossaryReadingForcePopup = true;
+        }
         GlossaryManager.setUnlocked(typeId, entryId, true);
     });
 
@@ -1627,6 +1998,316 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         const mode = String(args.Mode || 'all');
         GF.Param.GGMUnlockNotifyMode = mode;
     });
+
+    //=========================================================================
+    // Window_GFGlossaryReading — 阅读弹窗
+    //=========================================================================
+
+    var Window_GFGlossaryReading = function () {
+        this.initialize.apply(this, arguments);
+    };
+
+    Window_GFGlossaryReading.prototype = Object.create(Window_Base.prototype);
+    Window_GFGlossaryReading.prototype.constructor = Window_GFGlossaryReading;
+
+    Window_GFGlossaryReading.prototype.initialize = function () {
+        Window_Base.prototype.initialize.call(this);
+        this._windowSet = GF.Param.GGMReadingPopupWindowSet;
+        this._typeId = 0;
+        this._entryId = 0;
+        this._currentPage = 0;
+        this._maxPages = 0;
+        this._pictureBitmap = null;
+        this._extraPictures = [];
+        this._handlers = {};
+        this.processInitParam(this._windowSet);
+        this._refreshArrows = function () {
+            this.downArrowVisible = false;
+            this.upArrowVisible = false;
+        };
+    };
+
+    Window_GFGlossaryReading.prototype.setEntry = function (typeId, entryId) {
+        this._typeId = typeId;
+        this._entryId = entryId;
+        this._currentPage = 0;
+        this._pictureBitmap = null;
+        this._extraPictures = [];
+        this.refresh();
+    };
+
+    Window_GFGlossaryReading.prototype.refresh = function () {
+        this.contents.clear();
+        this.contentsBack.clear();
+        if (this._typeId <= 0 || this._entryId <= 0) return;
+
+        var entry = GlossaryManager.getEntry(this._typeId, this._entryId);
+        if (!entry) return;
+
+        // 标记为已查看
+        GlossaryManager.markAsSeen(this._typeId, this._entryId);
+
+        // 绘制标题
+        this._drawTitle(entry);
+
+        // 计算可显示的页
+        var visiblePages = this._getVisiblePages(entry);
+        this._maxPages = visiblePages.length;
+        if (this._currentPage >= this._maxPages) {
+            this._currentPage = Math.max(0, this._maxPages - 1);
+        }
+        if (this._currentPage < 0) this._currentPage = 0;
+
+        // 保存当前页
+        if (this._maxPages > 0) {
+            GlossaryManager.setCurrentPage(this._typeId, this._entryId, this._currentPage);
+        }
+
+        // 绘制内容
+        if (this._maxPages > 0 && this._currentPage < visiblePages.length) {
+            var page = visiblePages[this._currentPage];
+            this._drawPage(page, entry);
+        }
+
+        // 页码
+        this._drawPageNumber(entry);
+    };
+
+    Window_GFGlossaryReading.prototype._drawTitle = function (entry) {
+        var lh = this.lineHeight();
+        var tw = this.textWidth(entry.name);
+        var cx = (this.innerWidth - tw) / 2;
+        this.changeTextColor(ColorManager.textColor(9)); // 标题用浅色
+        this.drawText(entry.name, cx, 4, tw, 'left');
+        this.changeTextColor(ColorManager.normalColor());
+        // 标题下划线
+        this.contents.paintOpacity = 120;
+        this.contents.fillRect(cx, lh - 2, tw, 1, ColorManager.textColor(9));
+        this.contents.paintOpacity = 255;
+    };
+
+    Window_GFGlossaryReading.prototype._getVisiblePages = function (entry) {
+        if (!entry || !entry.pages) return [];
+        return entry.pages.filter(function (p) {
+            return GlossaryManager.isPageVisible(this._typeId, this._entryId, p.pageIndex);
+        }.bind(this));
+    };
+
+    Window_GFGlossaryReading.prototype._drawPage = function (page, entry) {
+        if (!page) return;
+
+        var desc = page.description || '';
+        var picName = page.picture || '';
+        var picPos = page.picturePosition || GF.Param.GGMPicturePosition || 'top';
+        var picAlign = page.pictureAlign || GF.Param.GGMPictureAlign || 'center';
+        var picPriority = page.picturePriority || GF.Param.GGMPicturePriority || 'top';
+        var picScale = page.pictureScale || 1.0;
+        var picX = page.pictureX || 0;
+        var picY = page.pictureY || 0;
+        var textY = page.textPosition || 0;
+        var enemyId = page.enemyId || 0;
+        var titleHeight = this.lineHeight() + 4;
+
+        var processedDesc = this._processControlChars(desc, enemyId, entry);
+
+        if (picName) {
+            this._pictureBitmap = ImageManager.loadPicture(picName);
+        }
+
+        if (this._pictureBitmap && this._pictureBitmap.isReady()) {
+            this._drawPicture(this._pictureBitmap, picPos, picAlign, picPriority, picScale, picX, picY, titleHeight);
+        }
+
+        var extraPics = page.extraPictures || [];
+        this._extraPictures = [];
+        for (var i = 0; i < extraPics.length; i++) {
+            var ep = extraPics[i];
+            if (ep.filename) {
+                var bmp = ImageManager.loadPicture(ep.filename);
+                this._extraPictures.push({ bitmap: bmp, x: ep.x || 0, y: ep.y || 0 });
+                if (bmp.isReady()) {
+                    this.contents.blt(bmp, 0, 0, bmp.width, bmp.height, ep.x || 0, ep.y || 0);
+                }
+            }
+        }
+
+        if (!picName || picPriority === 'bottom') {
+            this._drawTextContent(processedDesc, titleHeight + textY);
+        }
+    };
+
+    Window_GFGlossaryReading.prototype._drawPicture = function (bitmap, picPos, picAlign, picPriority, picScale, picX, picY, titleOffset) {
+        if (!bitmap || !bitmap.isReady()) return;
+
+        var bmpW = bitmap.width * picScale;
+        var bmpH = bitmap.height * picScale;
+
+        var dx = 0;
+        switch (picAlign) {
+            case 'left': dx = 0; break;
+            case 'right': dx = this.innerWidth - bmpW; break;
+            case 'center': default: dx = (this.innerWidth - bmpW) / 2; break;
+        }
+        dx += picX;
+
+        var dy = picY + titleOffset;
+        switch (picPos) {
+            case 'top': dy = picY + titleOffset; break;
+            case 'bottom': dy = this.innerHeight - bmpH - picY; break;
+            case 'text': default: dy = picY + titleOffset; break;
+        }
+
+        if (picPriority === 'bottom') {
+            this.contentsBack.blt(bitmap, 0, 0, bitmap.width, bitmap.height, dx, dy, bmpW, bmpH);
+        } else {
+            this.contents.blt(bitmap, 0, 0, bitmap.width, bitmap.height, dx, dy, bmpW, bmpH);
+        }
+    };
+
+    Window_GFGlossaryReading.prototype._drawTextContent = function (desc, startY) {
+        if (!desc) return;
+        var lh = this.lineHeight();
+        var maxWidth = this.innerWidth - this.itemPadding() * 2 - 8;
+
+        var lines = desc.split(/\\n/);
+
+        if (GF.Param.GGMAutoLineWrap) {
+            var wrapped = [];
+            for (var li = 0; li < lines.length; li++) {
+                var wrapResult = this._wrapLine(lines[li], maxWidth);
+                for (var wi = 0; wi < wrapResult.length; wi++) {
+                    wrapped.push(wrapResult[wi]);
+                }
+            }
+            lines = wrapped;
+        }
+
+        var y = startY || this.lineHeight() + 4;
+        for (var i = 0; i < lines.length; i++) {
+            this.drawTextEx(lines[i], 0, y);
+            y += lh;
+        }
+    };
+
+    Window_GFGlossaryReading.prototype._wrapLine = function (line, maxWidth) {
+        if (!line) return [''];
+        var plain = line.replace(/\\[a-zA-Z]+\{[^}]*\}/g, '').replace(/\\[a-zA-Z]+\[[^\]]*\]/g, '');
+        if (this.textWidth(plain) <= maxWidth) return [line];
+
+        var result = [];
+        var cur = '';
+        var curPlain = '';
+
+        for (var i = 0; i < line.length; i++) {
+            if (line[i] === '\\' && i + 1 < line.length) {
+                var rest = line.substring(i);
+                var m = rest.match(/^\\([a-zA-Z]+)(\{[^}]*\}|\[[^\]]*\])/);
+                if (m) {
+                    cur += m[0];
+                    i += m[0].length - 1;
+                    continue;
+                }
+            }
+
+            var nextCur = cur + line[i];
+            var nextPlain = curPlain + line[i];
+
+            if (this.textWidth(nextPlain) > maxWidth && cur.length > 0) {
+                result.push(cur);
+                cur = line[i];
+                curPlain = line[i];
+            } else {
+                cur = nextCur;
+                curPlain = nextPlain;
+            }
+        }
+        if (cur) result.push(cur);
+        return result;
+    };
+
+    Window_GFGlossaryReading.prototype._processControlChars = function (desc, enemyId, entry) {
+        if (!desc) return '';
+        var text = desc;
+
+        if (enemyId > 0 && $dataEnemies && $dataEnemies[enemyId]) {
+            var enemy = $dataEnemies[enemyId];
+            text = text.replace(/\\mhp\[(\d+)\]/gi, function (m, d) { return String(enemy.params[0]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\mmp\[(\d+)\]/gi, function (m, d) { return String(enemy.params[1]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\atk\[(\d+)\]/gi, function (m, d) { return String(enemy.params[2]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\def\[(\d+)\]/gi, function (m, d) { return String(enemy.params[3]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\mag\[(\d+)\]/gi, function (m, d) { return String(enemy.params[4]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\mdf\[(\d+)\]/gi, function (m, d) { return String(enemy.params[5]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\agi\[(\d+)\]/gi, function (m, d) { return String(enemy.params[6]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\luk\[(\d+)\]/gi, function (m, d) { return String(enemy.params[7]).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\exp\[(\d+)\]/gi, function (m, d) { return String(enemy.exp).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\money\[(\d+)\]/gi, function (m, d) { return String(enemy.gold).padStart(Number(d) || 1, '0'); });
+            text = text.replace(/\\drop\[(\d+)\]/gi, function (m, idx) {
+                var i = Number(idx) - 1;
+                if (i >= 0 && enemy.dropItems && enemy.dropItems[i]) {
+                    var di = enemy.dropItems[i];
+                    var item = di.kind === 1 ? $dataItems[di.dataId] : di.kind === 2 ? $dataWeapons[di.dataId] : $dataArmors[di.dataId];
+                    return item ? item.name : '无';
+                }
+                return '无';
+            });
+        }
+
+        text = text.replace(/\\v\[(\d+)\]/gi, function (m, n) { return String($gameVariables.value(Number(n))); });
+        text = text.replace(/\\s\[(\d+)\]/gi, function (m, n) { return $gameSwitches.value(Number(n)) ? 'ON' : 'OFF'; });
+        text = text.replace(/\\data\[(\w+)\]/gi, function (m, prop) { return entry && entry[prop] !== undefined ? String(entry[prop]) : m; });
+        text = text.replace(/\\script\{([^}]*)\}/gi, function (m, code) {
+            try { var result = eval(code); return result !== undefined ? String(result) : ''; }
+            catch (e) { return m; }
+        });
+
+        return text;
+    };
+
+    Window_GFGlossaryReading.prototype._drawPageNumber = function (entry) {
+        if (!GF.Param.GGMShowPageNumber || this._maxPages <= 1) return;
+        if (entry && entry.noPageNumber) return;
+        var pageText = (this._currentPage + 1) + '/' + this._maxPages;
+        var pw = this.textWidth(pageText);
+        this.drawText(pageText, (this.innerWidth - pw) / 2, this.innerHeight - this.lineHeight(), pw, 'center');
+    };
+
+    Window_GFGlossaryReading.prototype.cursorRight = function (wrap) {
+        if (this._maxPages <= 1) return;
+        if (this._currentPage < this._maxPages - 1) {
+            this._currentPage++;
+        } else if (wrap || GF.Param.GGMPageWrap) {
+            this._currentPage = 0;
+        }
+        SoundManager.playCursor();
+        this.refresh();
+    };
+
+    Window_GFGlossaryReading.prototype.cursorLeft = function (wrap) {
+        if (this._maxPages <= 1) return;
+        if (this._currentPage > 0) {
+            this._currentPage--;
+        } else if (wrap || GF.Param.GGMPageWrap) {
+            this._currentPage = this._maxPages - 1;
+        }
+        SoundManager.playCursor();
+        this.refresh();
+    };
+
+    Window_GFGlossaryReading.prototype.maxPage = function () { return this._maxPages; };
+    Window_GFGlossaryReading.prototype.currentPageIndex = function () { return this._currentPage; };
+
+    Window_GFGlossaryReading.prototype.processTouch = function () {
+        if (this.isOpenAndActive() && this._maxPages > 1 && TouchInput.isTriggered()) {
+            var x = TouchInput.x;
+            if (x > 0 && x < Graphics.width / 2) {
+                this.cursorLeft(true);
+            } else if (x >= Graphics.width / 2) {
+                this.cursorRight(true);
+            }
+        }
+    };
+
+    Window_GFGlossaryReading.prototype.isCurrentItemEnabled = function () { return true; };
 
     //=========================================================================
     // Window_GFGlossaryHelp
@@ -1682,7 +2363,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         }
 
         refresh() {
-            this._typeList = GlossaryManager.getGlossaryTypes();
+            this._typeList = GlossaryManager.getVisibleGlossaryTypes();
             super.refresh();
         }
 
@@ -1721,7 +2402,25 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             this._categoryList = [];
             super.initialize();
             this.processInitParam(this._windowSet);
+            this._lastCategoryIndex = -1;
+            this._onCursorMove = null;
             this.refresh();
+        }
+
+        setCursorMoveHandler(callback) {
+            this._onCursorMove = callback;
+        }
+
+        update() {
+            super.update();
+            if (!this.active) return;
+            const currentIndex = this.index();
+            if (currentIndex !== this._lastCategoryIndex) {
+                this._lastCategoryIndex = currentIndex;
+                if (typeof this._onCursorMove === 'function') {
+                    this._onCursorMove();
+                }
+            }
         }
 
         maxCols() {
@@ -1763,7 +2462,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             if (this._typeId > 0) {
                 const allCategories = GlossaryManager.getCategories(this._typeId);
                 this._categoryList = allCategories.filter(c =>
-                    GlossaryManager.isCategoryVisible(this._typeId, c.id)
+                    GlossaryManager.isCategoryVisible(this._typeId, c.id) &&
+                    (!GF.Param.GGMHideEmptyCategory || GlossaryManager.hasUnlockedEntries(this._typeId, c.id))
                 );
             }
             super.refresh();
@@ -1808,7 +2508,25 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             this._entryList = [];
             super.initialize();
             this.processInitParam(this._windowSet);
+            this._lastEntryIndex = -1;
+            this._onCursorMove = null;
             this.refresh();
+        }
+
+        setCursorMoveHandler(callback) {
+            this._onCursorMove = callback;
+        }
+
+        update() {
+            super.update();
+            if (!this.active) return;
+            const currentIndex = this.index();
+            if (currentIndex !== this._lastEntryIndex) {
+                this._lastEntryIndex = currentIndex;
+                if (typeof this._onCursorMove === 'function') {
+                    this._onCursorMove();
+                }
+            }
         }
 
         maxItems() {
@@ -2246,7 +2964,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         currentPageIndex() { return this._currentPage; }
 
         processTouch() {
-            super.processTouch();
+            Window_Selectable.prototype.processTouch.call(this);
             if (this.isOpenAndActive() && this._maxPages > 1 && TouchInput.isTriggered()) {
                 const x = TouchInput.x;
                 if (x > 0 && x < Graphics.width / 2) {
@@ -2258,6 +2976,201 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         }
 
         isCurrentItemEnabled() { return true; }
+    }
+
+    //=========================================================================
+    // Sprite_GFGlossaryCategory — 按钮式分类
+    //=========================================================================
+
+    class Sprite_GFGlossaryCategory extends Sprite_CommandWindow {
+        initialize() {
+            const btnSet = GF.Param.GGMCategoryButtonSet;
+            this._glossaryTypeId = 0;
+            // 构建贴图覆盖查找表
+            this._bitmapOverrides = {};
+            const overrideList = GF.Param.GGMCategoryButtonList || [];
+            for (let i = 0; i < overrideList.length; i++) {
+                const entry = overrideList[i];
+                if (entry && entry.Symbol) {
+                    this._bitmapOverrides[entry.Symbol] = entry.Bitmap || '';
+                }
+            }
+            const data = JsonEx.makeDeepCopy(GF.COSU.SpriteButtonSetList[btnSet.ButtonSetStyle] || {});
+            data.x = btnSet.ButtonSetX;
+            data.y = btnSet.ButtonSetY;
+            data.btn_src_default = btnSet.ButtonSetBitmap;
+            data.btn_bitmap_num = btnSet.ButtonBitmapNum;
+            data['back_bitmap'] = btnSet.ButtonBackBitmap;
+            data.btn_paramList = this._bitmapOverrides;
+            super.initialize(data);
+            this._index = 0;
+        }
+
+        setTypeId(typeId) {
+            this._glossaryTypeId = typeId;
+            this.clearCommandList();
+            this._commandList = [];
+            this.makeCommandList();
+            if (typeof this.refreshCommandVisible === 'function') {
+                this.refreshCommandVisible();
+            }
+        }
+
+        extractBtnParamList(bitmapOverrides) {
+            if (!this._glossaryTypeId) return [];
+            const categories = GlossaryManager.getCategories(this._glossaryTypeId);
+            const visibleCategories = categories.filter(c =>
+                GlossaryManager.isCategoryVisible(this._glossaryTypeId, c.id) &&
+                (!GF.Param.GGMHideEmptyCategory || GlossaryManager.hasUnlockedEntries(this._glossaryTypeId, c.id))
+            );
+            const paramList = [];
+            for (let i = 0; i < visibleCategories.length; i++) {
+                const cat = visibleCategories[i];
+                const param = {
+                    symbol: cat.id,
+                    bitmap: (bitmapOverrides && bitmapOverrides[cat.id]) || '',
+                    name: cat.name,
+                    enable: true,
+                    ext: null
+                };
+                paramList.push(param);
+            }
+            return paramList;
+        }
+
+        categoryId() {
+            return this.currentSymbol() || null;
+        }
+
+        currentCategoryId() {
+            return this.categoryId();
+        }
+
+        // --- 兼容 Window 接口（Window_Base 的 resetInitParamData 在精灵模式下不需要） ---
+        resetInitParamData() {}
+
+        selectCategory(categoryId) {
+            if (!categoryId || !this._commandList) return;
+            for (let i = 0; i < this._commandList.length; i++) {
+                const cmd = this._commandList[i];
+                if (cmd._symbol === categoryId) {
+                    this.select(i);
+                    break;
+                }
+            }
+        }
+
+        createNameSprite() {}
+        refreshNameSprite() {}
+        canSelectAndOk() { return true; }
+        canExCusorMove() { return true; }
+        canHandling() { return true; }
+
+        update() {
+            if (!this._commands || this._commands.length === 0) {
+                this._index = -1;
+            }
+            if (typeof Sprite_CommandWindow.prototype.update === 'function') {
+                Sprite_CommandWindow.prototype.update.call(this);
+            }
+        }
+    }
+
+    //=========================================================================
+    // Sprite_GFGlossaryList — 按钮式词典列表
+    //=========================================================================
+
+    class Sprite_GFGlossaryList extends Sprite_CommandWindow {
+        initialize() {
+            const btnSet = GF.Param.GGMGlossaryListButtonSet;
+            this._glossaryTypeList = [];
+            // 构建贴图覆盖查找表
+            this._bitmapOverrides = {};
+            const overrideList = GF.Param.GGMGlossaryListButtonList || [];
+            for (let i = 0; i < overrideList.length; i++) {
+                const entry = overrideList[i];
+                if (entry && entry.Symbol) {
+                    this._bitmapOverrides[entry.Symbol] = entry.Bitmap || '';
+                }
+            }
+            const data = JsonEx.makeDeepCopy(GF.COSU.SpriteButtonSetList[btnSet.ButtonSetStyle] || {});
+            data.x = btnSet.ButtonSetX;
+            data.y = btnSet.ButtonSetY;
+            data.btn_src_default = btnSet.ButtonSetBitmap;
+            data.btn_bitmap_num = btnSet.ButtonBitmapNum;
+            data['back_bitmap'] = btnSet.ButtonBackBitmap;
+            data.btn_paramList = this._bitmapOverrides;
+            super.initialize(data);
+            this._index = 0;
+        }
+
+        refresh() {
+            this._glossaryTypeList = GlossaryManager.getVisibleGlossaryTypes();
+            this.clearCommandList();
+            this._commandList = [];
+            this.makeCommandList();
+            if (typeof this.refreshCommandVisible === 'function') {
+                this.refreshCommandVisible();
+            }
+        }
+
+        extractBtnParamList(bitmapOverrides) {
+            const paramList = [];
+            const types = GlossaryManager.getVisibleGlossaryTypes();
+            for (let i = 0; i < types.length; i++) {
+                const typeId = this._glossaryTypeList[i];
+                const name = GlossaryManager.getGlossaryName(typeId);
+                const symbol = String(typeId);
+                const param = {
+                    symbol: symbol,
+                    bitmap: (bitmapOverrides && bitmapOverrides[symbol]) || '',
+                    name: name,
+                    enable: true,
+                    ext: typeId
+                };
+                paramList.push(param);
+            }
+            return paramList;
+        }
+
+        currentTypeId() {
+            const symbol = this.currentSymbol();
+            return symbol ? Number(symbol) : 0;
+        }
+
+        selectType(typeId) {
+            const symbol = String(typeId);
+            if (!this._commandList) return;
+            for (let i = 0; i < this._commandList.length; i++) {
+                const cmd = this._commandList[i];
+                if (cmd._symbol === symbol) {
+                    this.select(i);
+                    break;
+                }
+            }
+        }
+
+        // --- 兼容 Window 接口 ---
+        resetInitParamData() {}
+
+        createNameSprite() {}
+        refreshNameSprite() {}
+        canSelectAndOk() { return true; }
+        canExCusorMove() { return true; }
+        canHandling() { return true; }
+
+        maxItems() {
+            return this._glossaryTypeList ? this._glossaryTypeList.length : 0;
+        }
+
+        update() {
+            if (!this._commands || this._commands.length === 0) {
+                this._index = -1;
+            }
+            if (typeof Sprite_CommandWindow.prototype.update === 'function') {
+                Sprite_CommandWindow.prototype.update.call(this);
+            }
+        }
     }
 
     //=========================================================================
@@ -2283,16 +3196,36 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         }
 
         createGlossaryListWindow() {
-            this._listWindow = new Window_GFGlossaryList();
+            const useButtonMode = GF.Param.GGMGlossaryListMode === '按钮';
+            if (useButtonMode && typeof Sprite_CommandWindow !== 'undefined') {
+                this._listWindow = new Sprite_GFGlossaryList();
+            } else {
+                if (useButtonMode) {
+                    console.warn('GF_ExternalGlossary: 词典列表按钮模式需要 GF_1_CoreOfSpriteUI，已自动回退到窗口模式');
+                }
+                this._listWindow = new Window_GFGlossaryList();
+            }
             this._listWindow.setHandler('ok', this.onListOk.bind(this));
             this._listWindow.setHandler('cancel', this.popScene.bind(this));
             this.addWindow(this._listWindow);
         }
 
         createCategoryWindow() {
-            this._categoryWindow = new Window_GFGlossaryCategory();
+            const useButtonMode = GF.Param.GGMCategoryMode === '按钮';
+            if (useButtonMode && typeof Sprite_CommandWindow !== 'undefined') {
+                this._categoryWindow = new Sprite_GFGlossaryCategory();
+            } else {
+                if (useButtonMode) {
+                    console.warn('GF_ExternalGlossary: 按钮分类模式需要 GF_1_CoreOfSpriteUI，已自动回退到窗口模式');
+                }
+                this._categoryWindow = new Window_GFGlossaryCategory();
+            }
             this._categoryWindow.setHandler('ok', this.onCategoryOk.bind(this));
             this._categoryWindow.setHandler('cancel', this.onCategoryCancel.bind(this));
+            // 仅窗口模式下分类光标移动触发自动刷新；按钮模式不触发
+            if (typeof this._categoryWindow.setCursorMoveHandler === 'function') {
+                this._categoryWindow.setCursorMoveHandler(this._onCategoryCursorMove.bind(this));
+            }
             this.addWindow(this._categoryWindow);
         }
 
@@ -2300,6 +3233,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             this._entryWindow = new Window_GFGlossaryEntry();
             this._entryWindow.setHandler('ok', this.onEntryOk.bind(this));
             this._entryWindow.setHandler('cancel', this.onEntryCancel.bind(this));
+            this._entryWindow.setCursorMoveHandler(this._onEntryCursorMove.bind(this));
             this.addWindow(this._entryWindow);
         }
 
@@ -2315,7 +3249,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         }
 
         _determineLayout() {
-            const types = GlossaryManager.getGlossaryTypes();
+            const allTypes = GlossaryManager.getGlossaryTypes();
+            const visibleTypes = GlossaryManager.getVisibleGlossaryTypes();
             const openType = $gameSystem._glossaryOpenType || 0;
             const openCategory = $gameSystem._glossaryOpenCategory || null;
             const openEntry = $gameSystem._glossaryOpenEntry || 0;
@@ -2324,7 +3259,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             $gameSystem._glossaryOpenCategory = null;
             $gameSystem._glossaryOpenEntry = 0;
 
-            if (types.length === 0) {
+            if (allTypes.length === 0) {
                 this._helpWindow.setText('没有可用的词典数据。');
                 this._listWindow.hide();
                 this._categoryWindow.hide();
@@ -2334,12 +3269,16 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
                 return;
             }
 
-            if (openType > 0 && types.includes(openType)) {
+            if (visibleTypes.length === 0) {
+                // 所有词典均无已解锁条目，显示空列表+提示，仍可取消返回
+                this._showGlossaryList();
+                this._helpWindow.setText('所有词典暂无已解锁的条目。');
+                return;
+            }
+
+            if (openType > 0 && allTypes.includes(openType)) {
                 this._setBackPicture(openType);
                 this._showGlossaryBrowse(openType, openCategory, openEntry);
-            } else if (types.length === 1 && GF.Param.GGMHideListSingleGlossary) {
-                this._setBackPicture(types[0]);
-                this._showGlossaryBrowse(types[0], openCategory, openEntry);
             } else {
                 this._showGlossaryList();
             }
@@ -2349,7 +3288,9 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             this._listWindow.refresh();
             this._listWindow.show();
             this._listWindow.activate();
-            this._listWindow.select(0);
+            if (typeof this._listWindow.maxItems === 'function' && this._listWindow.maxItems() > 0) {
+                this._listWindow.select(0);
+            }
             this._categoryWindow.hide();
             this._entryWindow.hide();
             this._contentWindow.hide();
@@ -2372,16 +3313,28 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
                 this._listWindow.hide();
             }
 
-            if (glossary.useCategory && glossary.categories && glossary.categories.length > 0) {
+            if (glossary.useCategory && glossary.categories && glossary.categories.length > 0 && this._hasVisibleCategories(typeId)) {
                 this._showWithCategory(typeId, categoryId, entryId);
             } else {
                 this._showWithoutCategory(typeId, entryId);
             }
         }
 
+        _hasVisibleCategories(typeId) {
+            const categories = GlossaryManager.getCategories(typeId);
+            const visible = categories.filter(c =>
+                GlossaryManager.isCategoryVisible(typeId, c.id) &&
+                (!GF.Param.GGMHideEmptyCategory || GlossaryManager.hasUnlockedEntries(typeId, c.id))
+            );
+            return visible.length > 0;
+        }
+
         _showWithCategory(typeId, categoryId, entryId) {
+            const useButtonMode = GF.Param.GGMCategoryMode === '按钮';
             this._categoryWindow.show();
-            this._categoryWindow.resetInitParamData();
+            if (!useButtonMode) {
+                this._categoryWindow.resetInitParamData();
+            }
             this._categoryWindow.setTypeId(typeId);
             if (categoryId) {
                 this._categoryWindow.selectCategory(categoryId);
@@ -2395,7 +3348,11 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             if (entryId > 0) {
                 this._entryWindow.selectEntry(entryId);
             }
-            this._entryWindow.deactivate();
+            if (useButtonMode) {
+                this._entryWindow.activate();
+            } else {
+                this._entryWindow.deactivate();
+            }
 
             this._contentWindow.show();
             this._contentWindow.resetInitParamData();
@@ -2449,17 +3406,15 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         }
 
         onCategoryOk() {
-            this._categoryWindow.deactivate();
+            const useButtonMode = GF.Param.GGMCategoryMode === '按钮';
+            if (!useButtonMode) {
+                this._categoryWindow.deactivate();
+            }
             const typeId = this._currentTypeId;
             const categoryId = this._categoryWindow.currentCategoryId();
             this._entryWindow.setFilter(typeId, categoryId);
-            this._entryWindow.select(0);
-            this._entryWindow.activate();
-            this._completeWindow.setFilter(typeId, categoryId);
-
-            const selEntryId = this._entryWindow.currentEntryId();
-            if (selEntryId > 0) {
-                this._contentWindow.setItem(typeId, selEntryId, 0);
+            if (!useButtonMode) {
+                this._entryWindow.activate();
             }
         }
 
@@ -2473,29 +3428,69 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
         onEntryOk() {
             this._entryWindow.deactivate();
-            const typeId = this._currentTypeId;
-            const entryId = this._entryWindow.currentEntryId();
-            if (entryId > 0) {
-                this._contentWindow.setItem(typeId, entryId, 0);
-                this._contentWindow.activate();
+            // 按钮模式下停用分类精灵，防止其拦截取消键
+            if (GF.Param.GGMCategoryMode === '按钮') {
+                this._categoryWindow.deactivate();
             }
+            this._contentWindow.activate();
         }
 
         onEntryCancel() {
             this._entryWindow.deactivate();
-            const glossary = GlossaryManager.getGlossary(this._currentTypeId);
-            if (glossary && glossary.useCategory && glossary.categories && glossary.categories.length > 0) {
-                this._categoryWindow.activate();
-            } else if (GlossaryManager.getGlossaryCount() > 1) {
-                this._showGlossaryList();
+            const useButtonMode = GF.Param.GGMCategoryMode === '按钮';
+            if (useButtonMode) {
+                // 按钮模式下，取消直接回到词典列表或退出
+                if (GlossaryManager.getGlossaryCount() > 1) {
+                    this._showGlossaryList();
+                } else {
+                    this.popScene();
+                }
             } else {
-                this.popScene();
+                const glossary = GlossaryManager.getGlossary(this._currentTypeId);
+                if (glossary && glossary.useCategory && glossary.categories && glossary.categories.length > 0) {
+                    this._categoryWindow.activate();
+                } else if (GlossaryManager.getGlossaryCount() > 1) {
+                    this._showGlossaryList();
+                } else {
+                    this.popScene();
+                }
             }
         }
 
         onContentCancel() {
             this._contentWindow.deactivate();
+            // 按钮模式下恢复分类精灵的激活状态
+            if (GF.Param.GGMCategoryMode === '按钮') {
+                this._categoryWindow.activate();
+            }
             this._entryWindow.activate();
+        }
+
+        // ---- 光标移动自动刷新 ----
+
+        /**
+         * 分类窗口光标移动时，自动刷新条目列表和内容
+         */
+        _onCategoryCursorMove() {
+            const typeId = this._currentTypeId;
+            if (!typeId) return;
+            const categoryId = this._categoryWindow.currentCategoryId();
+            this._entryWindow.setFilter(typeId, categoryId);
+            this._completeWindow.setFilter(typeId, categoryId);
+            const selEntryId = this._entryWindow.currentEntryId();
+            this._contentWindow.setItem(typeId, selEntryId > 0 ? selEntryId : 0);
+        }
+
+        /**
+         * 条目窗口光标移动时，自动刷新内容
+         */
+        _onEntryCursorMove() {
+            const typeId = this._currentTypeId;
+            if (!typeId) return;
+            const entryId = this._entryWindow.currentEntryId();
+            if (entryId > 0) {
+                this._contentWindow.setItem(typeId, entryId);
+            }
         }
 
         startAllPartInvert() {
@@ -2536,7 +3531,82 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         };
     }
 
+    //=========================================================================
+    // Scene_GFGlossaryReading — 阅读弹窗场景（透明背景，覆盖在当前场景之上）
+    //=========================================================================
+
+    // 场景类 — 用 ES5 函数构造模式，避免 class extends 的兼容问题
+    var Scene_GFGlossaryReading = function () {
+        this.initialize.apply(this, arguments);
+    };
+
+    Scene_GFGlossaryReading.prototype = Object.create(Scene_Base.prototype);
+    Scene_GFGlossaryReading.prototype.constructor = Scene_GFGlossaryReading;
+
+    Scene_GFGlossaryReading.prototype.initialize = function () {
+        Scene_Base.prototype.initialize.call(this);
+    };
+
+    Scene_GFGlossaryReading.prototype.create = function () {
+        Scene_Base.prototype.create.call(this);
+        this._closeReady = false; // 延迟一帧再接受关闭输入
+        this.createDisplayBackground();
+        this.createWindowLayer();
+        this.createReadingWindow();
+    };
+
+    Scene_GFGlossaryReading.prototype.createDisplayBackground = function () {
+        // 使用 SceneManager 保存的截图作为背景
+        var bg = SceneManager._backgroundBitmap;
+        if (bg) {
+            var sprite = new Sprite(bg);
+            sprite.x = 0;
+            sprite.y = 0;
+            this.addChild(sprite);
+            this._bgSprite = sprite;
+        }
+    };
+
+    Scene_GFGlossaryReading.prototype.createWindowLayer = function () {
+        this._windowLayer = new WindowLayer();
+        this._windowLayer.x = this._windowLayer.y = 0;
+        this.addChild(this._windowLayer);
+    };
+
+    Scene_GFGlossaryReading.prototype.createReadingWindow = function () {
+        this._readingWindow = new Window_GFGlossaryReading();
+        this._readingWindow._handlers = this._readingWindow._handlers || {};
+        this._readingWindow._handlers['ok'] = this.popScene.bind(this);
+        this._readingWindow._handlers['cancel'] = this.popScene.bind(this);
+        this._windowLayer.addChild(this._readingWindow);
+
+        // 从暂存数据中读取要显示的条目
+        var data = $gameTemp._glossaryReadingData;
+        if (data && data.typeId && data.entryId) {
+            this._readingWindow.setEntry(data.typeId, data.entryId);
+        }
+        $gameTemp._glossaryReadingData = null;
+    };
+
+    Scene_GFGlossaryReading.prototype.update = function () {
+        Scene_Base.prototype.update.call(this);
+        if (!this._closeReady) {
+            this._closeReady = true;
+            return;
+        }
+        // 支持键盘（Enter/Esc）和触摸（点击/右键）关闭
+        if (Input.isTriggered('ok') || Input.isTriggered('cancel') || Input.isTriggered('escape') ||
+            TouchInput.isTriggered() || TouchInput.isCancelled()) {
+            this.popScene();
+        }
+    };
+
+    Scene_GFGlossaryReading.prototype.popScene = function () {
+        SceneManager.pop();
+    };
+
     window.Scene_GFGlossary = Scene_GFGlossary;
+    window.Scene_GFGlossaryReading = Scene_GFGlossaryReading;
     window.GlossaryManager = GlossaryManager;
 
 })();

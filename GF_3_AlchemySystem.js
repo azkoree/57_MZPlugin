@@ -15,14 +15,16 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        玩法 - 合成系统
- * @author 57 & deepseek
- * @url
+ * @author Reasonix
+ * @url https://afdian.net/a/ganfly
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_1_CoreOfWindowUI
  * @orderAfter GF_0_CoreOfGame
  * @base GF_0_CoreOfGame
  * @orderAfter GF_2_CoreOfMapEvent
  * @base GF_2_CoreOfMapEvent
+ * @orderAfter GF_1_CoreOfSpriteUI
+ * @base GF_1_CoreOfSpriteUI
  *
  * @help
  * ============================================================================
@@ -54,6 +56,16 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *  GF_0_CoreOfGame       系统 - 游戏核心（基础依赖）
  *  GF_1_CoreOfWindowUI   系统 - 窗口UI核心（窗口动画、皮肤、滚动条）
  *  GF_2_CoreOfMapEvent   系统 - 地图事件核心（可选，用于交互）
+ *
+ * ---- 可选依赖 ----
+ *
+ * GF_1_CoreOfSpriteUI    系统 - 精灵核心（精灵按钮、菜单按钮）
+ *
+ *     如果启用按钮式分类（CategoryMode 设为"按钮"），则必须加载此插件。
+ *     按钮模式下，分类按钮会自动从合成菜单 JSON 数据中检测可用分类生成，
+ *     无需手动为每个分类配置按钮。可通过"分类按钮贴图覆盖"参数为特定分类
+ *     指定自定义贴图，不配置则全部使用默认按钮贴图。
+ *     如果使用窗口式分类（默认），则不需要此插件。
  *
  * ---- 可扩展插件列表 ----
  *
@@ -310,6 +322,30 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type boolean
  * @desc 是否在合成界面显示分类筛选窗口。
  * @default true
+ *
+ * @param CategoryMode
+ * @parent GeneralSet
+ * @text 分类显示模式
+ * @type select
+ * @option 窗口
+ * @option 按钮
+ * @desc 选择分类的显示方式。"窗口"使用传统窗口列表；"按钮"使用精灵核心的按钮组（需加载 GF_1_CoreOfSpriteUI）。
+ * @default 窗口
+ *
+ * @param CategoryButtonSet
+ * @parent GeneralSet
+ * @text 分类按钮总体设置
+ * @type struct<AlchemyCategoryButtonSet>
+ * @desc 按钮模式下分类按钮组的总体设置（位置、样式、贴图）。
+ * @default {"ButtonSetX":"0","ButtonSetY":"0","ButtonSetStyle":"1","ButtonBitmapNum":"1","ButtonBackBitmap":"","ButtonSetBitmap":""}
+ *
+ * @param CategoryButtonList
+ * @parent GeneralSet
+ * @text 分类按钮贴图覆盖
+ * @type struct<AlchemyCategoryButtons>[]
+ * @desc 【可选】为特定分类指定自定义按钮贴图。不配置则全部使用默认按钮贴图。
+ *       分类按钮会自动从合成菜单数据中检测可用分类生成。
+ * @default []
  *
  * @param ShowHelpWindow
  * @parent GeneralSet
@@ -1017,6 +1053,86 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *
  */
 /* ---------------------------------------------------------------------------
+ * struct<AlchemyCategoryButtonSet>
+ * ---------------------------------------------------------------------------
+ */
+/*~struct~AlchemyCategoryButtonSet:
+ *
+ * @param ButtonSetX
+ * @text 平移-按钮组 X
+ * @desc x轴方向平移，单位像素。0为贴在最左边。
+ * @default 0
+ *
+ * @param ButtonSetY
+ * @text 平移-按钮组 Y
+ * @desc y轴方向平移，单位像素。0为贴在最上面。
+ * @default 0
+ *
+ * @param ButtonSetStyle
+ * @text 按钮组样式
+ * @type number
+ * @min 1
+ * @desc 按钮组对应的样式配置，对应 GF_1_CoreOfSpriteUI 按钮组核心 的样式id。
+ * @default 1
+ *
+ * @param ButtonBitmapNum
+ * @text 按钮贴图分割数量
+ * @type number
+ * @min 1
+ * @max 3
+ * @desc 按钮贴图分割数量，为2时，上面1/2代表常态按钮，下面1/2代表被选中/激活的按钮，
+ *       为3时每1/3分别代表常态、选中、激活。
+ * @default 1
+ *
+ * @param ButtonBackBitmap
+ * @text 按钮组背景
+ * @type file
+ * @dir img/
+ * @require 1
+ * @desc 按钮组的整体背景
+ * @default
+ *
+ * @param ButtonSetBitmap
+ * @text 默认按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 默认按钮的图片资源。
+ * @default
+ *
+ */
+/* ---------------------------------------------------------------------------
+ * struct<AlchemyCategoryButtons>
+ * ---------------------------------------------------------------------------
+ */
+/*~struct~AlchemyCategoryButtons:
+ *
+ * @param Note
+ * @text 标签
+ * @desc 只用于方便区分查看的标签，不作用在插件中。
+ * @default --新的分类按钮--
+ *
+ * @param Symbol
+ * @text 关键字
+ * @type combo
+ * @option all
+ * @option item
+ * @option weapon
+ * @option armor
+ * @option keyItem
+ * @desc 分类标识，对应合成菜单数据中的分类ID（如 all、item、weapon、armor、keyItem 或自定义分类ID）。
+ * @default all
+ *
+ * @param Bitmap
+ * @text 按钮贴图
+ * @type file
+ * @require 1
+ * @dir img/
+ * @desc 该分类的自定义按钮贴图。不填则使用默认按钮贴图。
+ * @default
+ *
+ */
+/* ---------------------------------------------------------------------------
  * struct<WindowMoving>
  * ---------------------------------------------------------------------------
  */
@@ -1254,6 +1370,37 @@ GF.AHS.param = GF.AHS.param || {};
     };
     GF.AHS.param.CategoryWindowSet = DataManager.setupWindowInitParam(catRaw);
     GF.AHS.param.CategoryCols = Math.max(1, Number(params['CategoryCols'] || 1));
+
+    // 分类显示模式
+    GF.AHS.param.CategoryMode = String(params['CategoryMode'] || '窗口');
+
+    // 分类按钮总体设置
+    GF.AHS.param.CategoryButtonSet = (() => {
+        const set = JSON.parse(params['CategoryButtonSet'] || '{}');
+        set.ButtonSetX = Number(set.ButtonSetX || 0);
+        set.ButtonSetY = Number(set.ButtonSetY || 0);
+        set.ButtonSetStyle = Number(set.ButtonSetStyle || 1);
+        set.ButtonBitmapNum = Number(set.ButtonBitmapNum || 1);
+        set.ButtonBackBitmap = String(set.ButtonBackBitmap || '');
+        set.ButtonSetBitmap = String(set.ButtonSetBitmap || '');
+        return set;
+    })();
+
+    // 分类按钮贴图覆盖（可选，仅用于自定义按钮贴图，分类自动从菜单数据检测）
+    GF.AHS.param.CategoryButtonList = (() => {
+        const raw = params['CategoryButtonList'] || '[]';
+        try {
+            return JSON.parse(raw).map(entry => {
+                const obj = typeof entry === 'string' ? JSON.parse(entry) : entry;
+                return {
+                    Symbol: String(obj.Symbol || 'all'),
+                    Bitmap: String(obj.Bitmap || '')
+                };
+            });
+        } catch (e) {
+            return [];
+        }
+    })();
 
     // 配方列表窗口
     const listRaw = {
@@ -2220,6 +2367,7 @@ Window_AlchemyNumberInput.prototype.initialize = function() {
     this._number = 1;
     this._callback = null;
     this._cancelCallback = null;
+    this.setHandler('ok', this.processOk.bind(this));
     this.setHandler('cancel', this.processCancel.bind(this));
     this.createButtons();
     this.select(0);
@@ -2408,16 +2556,16 @@ Window_AlchemyNumberInput.prototype.update = function() {
 };
 
 Window_AlchemyNumberInput.prototype.processNumberChange = function() {
-    if (Input.isRepeated("right") || Input.isRepeated("up")) {
+    if (Input.isRepeated("up")) {
         this.changeNumber(1);
     }
-    if (Input.isRepeated("left") || Input.isRepeated("down")) {
+    if (Input.isRepeated("down")) {
         this.changeNumber(-1);
     }
-    if (Input.isTriggered("pagedown") || Input.isRepeated("pagedown")) {
+    if (Input.isRepeated("left") || Input.isRepeated("pagedown")) {
         this.changeNumber(-10);
     }
-    if (Input.isTriggered("pageup") || Input.isRepeated("pageup")) {
+    if (Input.isRepeated("right") || Input.isRepeated("pageup")) {
         this.changeNumber(10);
     }
 };
@@ -2543,6 +2691,25 @@ Window_AlchemyMenuList.prototype.initialize = function() {
     const helpH = GF.AHS.param.ShowMenuListHelp ? 80 : 0;
     const h = Graphics.boxHeight - helpH;
     Window_Selectable.prototype.initialize.call(this, new Rectangle(0, helpH, w, h));
+    // 初始化 GF 窗口参数，与插件内其他窗口保持一致
+    const initData = DataManager.setupWindowInitParam({
+        WindowX: 0,
+        WindowY: helpH,
+        WindowWidth: w,
+        WindowHeight: h,
+        WindowFontSize: 22,
+        WindowFontFace: '',
+        WindowLineHeight: 36,
+        WindowMoving: JSON.stringify({
+            MoveType: '不移动', MoveTime: '20', MoveDelay: '0',
+            OpacityLock: 'false', CoordinateType: '相对坐标',
+            SlideX: '0', SlideY: '0', SlideAbsoluteX: '0', SlideAbsoluteY: '0'
+        }),
+        WindowLayout: JSON.stringify({
+            LayoutType: '默认皮肤', BackgroundFile: '', BackgroundX: '0', BackgroundY: '0'
+        })
+    });
+    this.processInitParam(initData);
     this._menuTypes = [];
     this.refresh();
 };
@@ -2550,6 +2717,9 @@ Window_AlchemyMenuList.prototype.initialize = function() {
 Window_AlchemyMenuList.prototype.refresh = function() {
     this._menuTypes = AlchemyManager.getEnabledMenuTypes();
     Window_Selectable.prototype.refresh.call(this);
+    if (this._menuTypes.length > 0 && this.index() < 0) {
+        this.select(0);
+    }
 };
 
 Window_AlchemyMenuList.prototype.maxItems = function() {
@@ -2576,6 +2746,88 @@ Window_AlchemyMenuList.prototype.selectedMenuType = function() {
     }
     return null;
 };
+
+//=============================================================================
+// Sprite_AlchemyCategory
+//=============================================================================
+
+class Sprite_AlchemyCategory extends Sprite_CommandWindow {
+    initialize(menuType) {
+        const btnSet = GF.AHS.param.CategoryButtonSet;
+        this._menuType = menuType || null;
+        // 构建贴图覆盖查找表（可选，不配置则使用默认贴图）
+        this._bitmapOverrides = {};
+        const overrideList = GF.AHS.param.CategoryButtonList || [];
+        for (let i = 0; i < overrideList.length; i++) {
+            const entry = overrideList[i];
+            if (entry && entry.Symbol) {
+                this._bitmapOverrides[entry.Symbol] = entry.Bitmap || '';
+            }
+        }
+        const data = JsonEx.makeDeepCopy(GF.COSU.SpriteButtonSetList[btnSet.ButtonSetStyle] || {});
+        data.x = btnSet.ButtonSetX;
+        data.y = btnSet.ButtonSetY;
+        data.btn_src_default = btnSet.ButtonSetBitmap;
+        data.btn_bitmap_num = btnSet.ButtonBitmapNum;
+        data['back_bitmap'] = btnSet.ButtonBackBitmap;
+        data.btn_paramList = this._bitmapOverrides;
+        super.initialize(data);
+        this._index = 0;
+    }
+
+    setMenuType(menuType) {
+        this._menuType = menuType;
+        this.clearCommandList();
+        this._commandList = [];
+        this.makeCommandList();
+        if (typeof this.refreshCommandVisible === 'function') {
+            this.refreshCommandVisible();
+        }
+    }
+
+    extractBtnParamList(bitmapOverrides) {
+        // 自动从菜单数据检测可用分类，生成按钮列表
+        if (!this._menuType) return [];
+        const categories = AlchemyManager.getCategories(this._menuType);
+        const paramList = [];
+        for (let i = 0; i < categories.length; i++) {
+            const cat = categories[i];
+            const param = {
+                symbol: cat.id,
+                bitmap: (bitmapOverrides && bitmapOverrides[cat.id]) || '',
+                name: cat.name,
+                enable: true,
+                ext: null
+            };
+            paramList.push(param);
+        }
+        return paramList;
+    }
+
+    categoryId() {
+        return this.currentSymbol() || 'all';
+    }
+
+    createNameSprite() {
+    }
+
+    refreshNameSprite() {
+    }
+
+    canSelectAndOk() {
+        return true;
+    }
+
+    canExCusorMove() {
+        return true;
+    }
+
+    update() {
+        if (typeof Sprite_CommandWindow.prototype.update === 'function') {
+            Sprite_CommandWindow.prototype.update.call(this);
+        }
+    }
+}
 
 //=============================================================================
 // Scene_Alchemy
@@ -2608,12 +2860,17 @@ Scene_Alchemy.prototype.create = function() {
         this._helpWindow = null;
     }
 
-    // 分类窗口
-    this._categoryWindow = new Window_AlchemyCategory();
-    this._categoryWindow.setMenuType(this._menuType);
-    this._categoryWindow.setHandler('ok', this.onCategoryOk.bind(this));
-    this._categoryWindow.setHandler('cancel', this.onCategoryCancel.bind(this));
-    this.addWindow(this._categoryWindow);
+    // 分类控件（根据模式选择窗口或精灵按钮组）
+    const useButtonMode = GF.AHS.param.CategoryMode === '按钮';
+    if (useButtonMode) {
+        this._categoryWidget = new Sprite_AlchemyCategory(this._menuType);
+    } else {
+        this._categoryWidget = new Window_AlchemyCategory();
+    }
+    this._categoryWidget.setMenuType(this._menuType);
+    this._categoryWidget.setHandler('ok', this.onCategoryOk.bind(this));
+    this._categoryWidget.setHandler('cancel', this.onCategoryCancel.bind(this));
+    this.addWindow(this._categoryWidget);
 
     // 配方详情窗口（必须在配方列表之前创建，以便 setDetailWindow 正确连接）
     try {
@@ -2630,13 +2887,17 @@ Scene_Alchemy.prototype.create = function() {
     // 配方列表窗口
     this._recipeListWindow = new Window_AlchemyRecipeList();
     this._recipeListWindow.setMenuType(this._menuType);
-    this._recipeListWindow.setCategory(this._categoryWindow.categoryId());
+    this._recipeListWindow.setCategory(this._categoryWidget.categoryId());
     this._recipeListWindow.setHandler('ok', this.onRecipeOk.bind(this));
     this._recipeListWindow.setHandler('cancel', this.onRecipeListCancel.bind(this));
     this._recipeListWindow.setHelpWindow(this._helpWindow);
     this._recipeListWindow.setDetailWindow(this._detailWindow);
     this.addWindow(this._recipeListWindow);
-    this._categoryWindow.setRecipeListWindow(this._recipeListWindow);
+
+    // 窗口模式下将分类窗口与配方列表关联（自动刷新）
+    if (!useButtonMode) {
+        this._categoryWidget.setRecipeListWindow(this._recipeListWindow);
+    }
 
     // 金币窗口（可选）
     if (GF.AHS.param.ShowGoldWindow) {
@@ -2661,11 +2922,21 @@ Scene_Alchemy.prototype.create = function() {
 
 Scene_Alchemy.prototype.start = function() {
     Scene_MenuBase.prototype.start.call(this);
-    this._categoryWindow.activate();
+    if (GF.AHS.param.CategoryMode === '按钮') {
+        // 按钮模式下光标始终在配方列表，分类按钮仅响应鼠标点击
+        this._recipeListWindow.activate();
+        this._recipeListWindow.select(0);
+    } else {
+        this._categoryWidget.activate();
+    }
+};
+
+Scene_Alchemy.prototype.update = function() {
+    Scene_MenuBase.prototype.update.call(this);
 };
 
 Scene_Alchemy.prototype.onCategoryOk = function() {
-    this._recipeListWindow.setCategory(this._categoryWindow.categoryId());
+    this._recipeListWindow.setCategory(this._categoryWidget.categoryId());
     this._recipeListWindow.activate();
     this._recipeListWindow.select(0);
     if (this._detailWindow) {
@@ -2679,7 +2950,11 @@ Scene_Alchemy.prototype.onCategoryCancel = function() {
 };
 
 Scene_Alchemy.prototype.onRecipeListCancel = function() {
-    this._categoryWindow.activate();
+    if (GF.AHS.param.CategoryMode === '按钮') {
+        this.popScene();
+    } else {
+        this._categoryWidget.activate();
+    }
 };
 
 Scene_Alchemy.prototype.onRecipeOk = function() {
@@ -2703,7 +2978,7 @@ Scene_Alchemy.prototype.onRecipeOk = function() {
     this._recipeListWindow.deactivate();
     // 保存当前配方索引，防止 category.deactivate 的副作用将其重置为 0
     const savedRecipeIndex = this._recipeListWindow.index();
-    if (this._categoryWindow) this._categoryWindow.deactivate();
+    if (this._categoryWidget) this._categoryWidget.deactivate();
     // 恢复配方列表索引（category.deactivate → reselect → callUpdateHelp → updateHelp
     // → setCategory → select(0) 会覆盖配方列表的当前索引）
     this._recipeListWindow.select(savedRecipeIndex);
