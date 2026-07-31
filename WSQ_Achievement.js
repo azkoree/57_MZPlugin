@@ -34,6 +34,8 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * - 分类系统：取消按完成情况筛选，改为插件参数自由配置的成就分类
  * - 弹窗提示：使用 GF_3_ToastSystem（ToastManager.addText）
  * - 窗口管线：全部走 GF 的 processInitParam，支持窗口移动动画与皮肤
+ * - 列表项美化：第一行可绘制渐变色背景条（长度、左右颜色可调，支持透明）；
+ *   整块项目背景与光标样式均可复用窗口核心的样式配置（见「项目背景」「项目光标」参数）
  * - 分类模式：支持窗口分类列表与精灵按钮分类（通过「分类显示模式」参数切换）
  *
  * 使用步骤：
@@ -319,6 +321,69 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 【可选】为特定分类指定自定义按钮贴图。不配置则全部使用默认按钮贴图。
  *       分类按钮会自动从成就分类配置中检测可用分类生成。
  * @default []
+ *
+ * @param itemRowBar
+ * @text ── 列表项样式 ──
+ *
+ * @param itemRowBarEnable
+ * @parent itemRowBar
+ * @text 第一行渐变背景启用
+ * @type boolean
+ * @on 启用
+ * @off 关闭
+ * @desc 是否在每个成就项的第一行（图标+名称行）绘制渐变色背景条。
+ * @default true
+ *
+ * @param itemRowBarColorL
+ * @parent itemRowBar
+ * @text 渐变背景-左颜色
+ * @desc 渐变背景左侧颜色。填数字=系统颜色编号（0-31），填#rrggbb=自定义颜色，填opacity或透明=该侧透明。
+ * @default 16
+ *
+ * @param itemRowBarColorR
+ * @parent itemRowBar
+ * @text 渐变背景-右颜色
+ * @desc 渐变背景右侧颜色。填数字=系统颜色编号（0-31），填#rrggbb=自定义颜色，填opacity或透明=该侧透明。
+ * @default 0
+ *
+ * @param itemRowBarLength
+ * @parent itemRowBar
+ * @text 渐变背景长度
+ * @type number
+ * @min 0
+ * @max 1
+ * @decimals 2
+ * @desc 渐变背景宽度占成就项内容宽度的比例（0~1），从左往右绘制。
+ * @default 0.6
+ *
+ * @param itemBackEnable
+ * @parent itemRowBar
+ * @text 项目背景启用
+ * @type boolean
+ * @on 启用
+ * @off 关闭
+ * @desc 是否在每个成就项的整块区域绘制常显项目背景（光标不在该项目上也显示）。
+ *       样式参照 GF_1_CoreOfWindowUI 的「选项背景」（SelectBack），绘制在第一行渐变背景之下。
+ * @default true
+ *
+ * @param itemBackStyleId
+ * @parent itemRowBar
+ * @text 项目背景样式ID
+ * @type number
+ * @min 0
+ * @desc 对应 GF_1_CoreOfWindowUI「选项背景」样式列表（SelectBackSet）中的样式ID，
+ *       贴图/边框/是否绘制默认背景均在窗口核心中配置。填0表示不使用窗口核心样式（仅保留默认绘制）。
+ * @default 1
+ *
+ * @param itemCusorStyleId
+ * @parent itemRowBar
+ * @text 项目光标样式ID
+ * @type number
+ * @min 0
+ * @desc 对应 GF_1_CoreOfWindowUI「选项光标」样式列表（SelectCusorSet）中的样式ID，
+ *       光标贴图/混合模式/透明度/滚动速度等均在窗口核心中配置（仅光标所在项目显示）。
+ *       填0表示不使用窗口核心样式（保留默认光标）。
+ * @default 1
  *
  */
 
@@ -1051,6 +1116,18 @@ WSQ.ACH.getStatDisplayName = function (key) {
 WSQ.ACH.hasAchNote = function (obj) {
     if (!obj || !obj.meta) return false;
     return !!(obj.meta.WSQ_ACH || obj.meta["成就统计"]);
+};
+
+// 颜色解析（参照 GF_3_AlchemySystem 的 AlchemyManager._resolveColor）
+// 支持：数字=系统颜色编号（ColorManager.textColor）、#rrggbb=自定义颜色、opacity/透明=该侧透明
+WSQ.ACH.resolveColor = function (colorStr) {
+    if (!colorStr) return '#ffffff';
+    const s = String(colorStr).trim().toLowerCase();
+    if (s === 'opacity' || s === '透明') return 'rgba(0,0,0,0)';
+    if (s.charAt(0) === '#') return s;
+    const n = Number(colorStr);
+    if (!isNaN(n)) return ColorManager.textColor(n);
+    return '#ffffff';
 };
 
 // ============================================================================
@@ -1839,6 +1916,40 @@ class Window_AchievementList extends Window_Selectable {
         return Number(this._windowSet.MaxCols) || 1;
     }
 
+    // 项目背景：复用 GF_1_CoreOfWindowUI 的「选项背景」样式（SelectBackSet），
+    // RMMZ 的 drawAllItems 会对每个可见项调用 drawItemBackground，故背景天然常显
+    // （不依赖光标位置）。样式ID 由插件参数「项目背景样式ID」指定。
+    selectBackStyleId() {
+        const id = Number(WSQ.Param.ACH.itemBackStyleId);
+        return Number.isFinite(id) ? id : 1;
+    }
+
+    // 项目光标：复用 GF_1_CoreOfWindowUI 的「选项光标」样式（SelectCusorSet），
+    // 光标贴图仅显示在光标所在项目上并跟随移动。
+    // 样式ID 由插件参数「项目光标样式ID」指定。
+    selectCusorStyleId() {
+        const id = Number(WSQ.Param.ACH.itemCusorStyleId);
+        return Number.isFinite(id) ? id : 1;
+    }
+
+    drawItemBackground(index) {
+        if (WSQ.Param.ACH.itemBackEnable === false) return;
+        super.drawItemBackground(index);
+    }
+
+    // 项目背景贴图是异步加载的：首次打开场景时图片可能尚未就绪，
+    // getSelectBack 会基于 0 尺寸源图生成空白背景且之后不会自动重绘。
+    // 这里在图片加载完成后触发一次刷新，确保背景正常显示。
+    update() {
+        super.update();
+        if (this._achSelectBackRedrawn) return;
+        const bitmap = this._selectBackBitmap;
+        if (bitmap && bitmap.isReady()) {
+            this._achSelectBackRedrawn = true;
+            this.refresh();
+        }
+    }
+
     // 每项两行：图标+名称一行，描述+奖励一行（含上下内边距，确保不超出不重叠）
     itemHeight() {
         const lh = this.lineHeight();
@@ -1876,7 +1987,22 @@ class Window_AchievementList extends Window_Selectable {
 
     refresh() {
         this.makeItemList();
+        // 清空背景层，避免列表变化/滚动后残留旧的渐变背景
+        if (this.contentsBack) this.contentsBack.clear();
         super.refresh();
+    }
+
+    // 绘制第一行渐变背景条（参照 GF_3_AlchemySystem 配方详情的标题背景条实现）
+    _drawItemRowBar(x, y, width, height) {
+        if (WSQ.Param.ACH.itemRowBarEnable === false) return;
+        const len = Number(WSQ.Param.ACH.itemRowBarLength);
+        if (!(len > 0) || !this.contentsBack) return;
+        const barW = Math.floor(width * Math.min(1, Math.max(0, len)));
+        if (barW < 4) return;
+        const colorL = WSQ.ACH.resolveColor(WSQ.Param.ACH.itemRowBarColorL);
+        const colorR = WSQ.ACH.resolveColor(WSQ.Param.ACH.itemRowBarColorR);
+        this.contentsBack.clearRect(x, y, width, height);
+        this.contentsBack.gradientFillNormalRect(x, y, barW, height, colorL, colorR);
     }
 
     drawItem(index) {
@@ -1890,6 +2016,9 @@ class Window_AchievementList extends Window_Selectable {
         const innerX = rect.x + pad;
         const innerY = rect.y + pad;
         const innerW = rect.width - pad * 2;
+
+        // 第一行渐变背景（图标+名称行的底色）
+        this._drawItemRowBar(innerX, innerY, innerW, lh);
 
         // 第一行：图标 + 名称（左）+ 进度/已完成（右对齐）
         const iconW = ImageManager.iconWidth;

@@ -8,13 +8,13 @@ Imported.GF_3_ExternalGlossary = true;
 
 var GF = GF || {};
 GF.GGM = GF.GGM || {};
-GF.GGM.version = 1.00;
+GF.GGM.version = 1.02;
 GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 //=============================================================================
 /*:
  * @target MZ
- * @plugindesc [v1.00]        玩法 - 用语词典
+ * @plugindesc [v1.02]        玩法 - 用语词典
  * @author 57拷打ai写
  * @url 
  * @orderAfter GF_1_CoreOfWindowUI
@@ -256,6 +256,10 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *  更新日志
  * ============================================================================
  * 
+ * [v1.02] 阅读弹窗退出动画改用 GF 窗口核心的收起动画（倒放窗口移动/透明度动画），
+ *         移除退出延迟(帧)、退出动画效果两个参数；退出动画时长由阅读弹窗窗口设置
+ *         （ReadingPopupWindowSet）中的移动时间（WindowMoving.MoveTime）决定。
+ * [v1.01] 阅读弹窗新增退出延迟和过渡动画效果参数（退出延迟(帧)、退出动画效果）。
  * [v1.00] 初始版本。
  *
  * ============================================================================
@@ -763,6 +767,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @parent ReadingPopupSet
  * @type struct<GlossaryWindowSet>
  * @desc 阅读弹窗的窗口设置（位置、大小、字体、动画、背景）。
+ *       退出时窗口会倒放该移动/透明度动画作为收起效果（GF 窗口核心收起动画），
+ *       收起动画时长由窗口移动时间（WindowMoving.MoveTime）决定。
  * @default {"WindowX":"200","WindowY":"100","WindowWidth":"880","WindowHeight":"520","WindowFontSize":"22","WindowFontFace":"","WindowLineHeight":"36","WindowMoving":"{\"MoveType\":\"不移动\",\"MoveTime\":\"20\",\"MoveDelay\":\"0\",\"OpacityLock\":\"false\",\"StartPoint\":\"\",\"CoordinateType\":\"相对坐标\",\"SlideX\":\"0\",\"SlideY\":\"0\",\"SlideAbsoluteX\":\"0\",\"SlideAbsoluteY\":\"0\"}","WindowLayout":"{\"LayoutType\":\"默认皮肤\",\"Background\":\"\",\"BackgroundFile\":\"\",\"BackgroundX\":\"0\",\"BackgroundY\":\"0\"}"}
  *
  * @param MenuSet
@@ -3063,8 +3069,30 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         createNameSprite() {}
         refreshNameSprite() {}
         canSelectAndOk() { return true; }
-        canExCusorMove() { return true; }
-        canHandling() { return true; }
+
+        /**
+         * 条目窗口激活期间，分类按钮忽略全部键盘输入（方向键只控制条目列表光标），
+         * 分类切换通过鼠标点击按钮完成。
+         */
+        isKeyboardBlocked() {
+            return !!(this._entryWindow && this._entryWindow.active);
+        }
+
+        canCusorMove() { return !this.isKeyboardBlocked(); }
+        canExCusorMove() { return !this.isKeyboardBlocked(); }
+        canHandling() { return !this.isKeyboardBlocked(); }
+
+        cursorUp() {
+            const max = this._commands.length;
+            if (max <= 0) return;
+            this.select((this._index + max - 1) % max);
+        }
+
+        cursorDown() {
+            const max = this._commands.length;
+            if (max <= 0) return;
+            this.select((this._index + 1) % max);
+        }
 
         update() {
             if (!this._commands || this._commands.length === 0) {
@@ -3156,8 +3184,21 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         createNameSprite() {}
         refreshNameSprite() {}
         canSelectAndOk() { return true; }
+        canCusorMove() { return true; }
         canExCusorMove() { return true; }
         canHandling() { return true; }
+
+        cursorUp() {
+            const max = this._commands.length;
+            if (max <= 0) return;
+            this.select((this._index + max - 1) % max);
+        }
+
+        cursorDown() {
+            const max = this._commands.length;
+            if (max <= 0) return;
+            this.select((this._index + 1) % max);
+        }
 
         maxItems() {
             return this._glossaryTypeList ? this._glossaryTypeList.length : 0;
@@ -3235,6 +3276,12 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             this._entryWindow.setHandler('cancel', this.onEntryCancel.bind(this));
             this._entryWindow.setCursorMoveHandler(this._onEntryCursorMove.bind(this));
             this.addWindow(this._entryWindow);
+            // 按钮模式下：让分类按钮精灵感知条目窗口的激活状态。
+            // 条目窗口激活期间，分类按钮忽略全部键盘输入（方向键只控制条目列表），
+            // 分类切换通过鼠标点击按钮完成。
+            if (GF.Param.GGMCategoryMode === '按钮' && this._categoryWindow) {
+                this._categoryWindow._entryWindow = this._entryWindow;
+            }
         }
 
         createContentWindow() {
@@ -3590,6 +3637,16 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
     Scene_GFGlossaryReading.prototype.update = function () {
         Scene_Base.prototype.update.call(this);
+        // 收起动画播放中：等待 GF 窗口核心的回调触发退出，
+        // 另加一个兜底计时（600 帧 = 10 秒）防止动画回调意外未触发导致卡死。
+        if (this._closing) {
+            this._closeTimer++;
+            if (this._closeTimer >= 600) {
+                this._closing = false;
+                this._doPopScene();
+            }
+            return;
+        }
         if (!this._closeReady) {
             this._closeReady = true;
             return;
@@ -3602,6 +3659,23 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     };
 
     Scene_GFGlossaryReading.prototype.popScene = function () {
+        if (this._closing) return; // 防止重复触发
+        var w = this._readingWindow;
+        if (w && w.initParamData && w.initParamData()) {
+            // 使用 GF 窗口核心的收起动画：倒放窗口初始化动画（移动/透明度），
+            // 动画时长由阅读弹窗窗口设置的移动时间（WindowMoving.MoveTime）决定，
+            // 播放完毕后通过 processInitParamCallBack 回调退出场景。
+            this._closing = true;
+            this._closeTimer = 0;
+            w.deactivate();
+            w.processInitParamCallBack(this._doPopScene.bind(this));
+            w.invertInitParamData();
+        } else {
+            this._doPopScene();
+        }
+    };
+
+    Scene_GFGlossaryReading.prototype._doPopScene = function () {
         SceneManager.pop();
     };
 
