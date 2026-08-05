@@ -1,0 +1,24 @@
+{
+  "name": "gf-text-json-editor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WSQ_MultiTextDatabase 文本 json 可视化编辑器（Vue3 + Express）",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,vite -c yellow,cyan \"node server/index.js\" \"vite\"",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "test": "node --test test/server.test.js test/integration.test.js test/format.test.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "vue": "^3.4.29"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.5",
+    "concurrently": "^8.2.2",
+    "playwright-core": "^1.62.1",
+    "vite": "^5.4.0"
+  }
+}
