@@ -1,1 +1,5 @@
 .reasonix/
+reasonix.toml
+tools/MultiTextDatabase/node_modules/
+tools/MultiTextDatabase/dist/
+tools/MultiTextDatabase/*.bak

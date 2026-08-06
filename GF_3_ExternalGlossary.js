@@ -8,13 +8,13 @@ Imported.GF_3_ExternalGlossary = true;
 
 var GF = GF || {};
 GF.GGM = GF.GGM || {};
-GF.GGM.version = 1.02;
+GF.GGM.version = 1.04;
 GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 //=============================================================================
 /*:
  * @target MZ
- * @plugindesc [v1.02]        玩法 - 用语词典
+ * @plugindesc [v1.04]        玩法 - 用语词典
  * @author 57拷打ai写
  * @url 
  * @orderAfter GF_1_CoreOfWindowUI
@@ -256,6 +256,13 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *  更新日志
  * ============================================================================
  * 
+ * [v1.04] 防跳过机制改由独立参数「防跳过时长」控制锁定时间（默认 90 帧 = 1.5 秒），
+ *         不再按移动时长+移动延迟计算（原公式在默认「不移动」弹窗下仅 20 帧 ≈ 0.33 秒，
+ *         感知不到效果）。「防跳过」总开关保留。
+ * [v1.03] 阅读弹窗新增防跳过机制（参数「防跳过」）：弹窗弹出期间暂时禁用确定键和
+ *         取消键（含触摸点击/右键），防止快速跳过；禁用时长 = 阅读弹窗窗口设置
+ *         （ReadingPopupWindowSet）中的移动延迟（WindowMoving.MoveDelay）+ 移动时间
+ *         （WindowMoving.MoveTime），即弹出动画全程。
  * [v1.02] 阅读弹窗退出动画改用 GF 窗口核心的收起动画（倒放窗口移动/透明度动画），
  *         移除退出延迟(帧)、退出动画效果两个参数；退出动画时长由阅读弹窗窗口设置
  *         （ReadingPopupWindowSet）中的移动时间（WindowMoving.MoveTime）决定。
@@ -770,6 +777,25 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *       退出时窗口会倒放该移动/透明度动画作为收起效果（GF 窗口核心收起动画），
  *       收起动画时长由窗口移动时间（WindowMoving.MoveTime）决定。
  * @default {"WindowX":"200","WindowY":"100","WindowWidth":"880","WindowHeight":"520","WindowFontSize":"22","WindowFontFace":"","WindowLineHeight":"36","WindowMoving":"{\"MoveType\":\"不移动\",\"MoveTime\":\"20\",\"MoveDelay\":\"0\",\"OpacityLock\":\"false\",\"StartPoint\":\"\",\"CoordinateType\":\"相对坐标\",\"SlideX\":\"0\",\"SlideY\":\"0\",\"SlideAbsoluteX\":\"0\",\"SlideAbsoluteY\":\"0\"}","WindowLayout":"{\"LayoutType\":\"默认皮肤\",\"Background\":\"\",\"BackgroundFile\":\"\",\"BackgroundX\":\"0\",\"BackgroundY\":\"0\"}"}
+ *
+ * @param ReadingPopupAntiSkip
+ * @text 防跳过
+ * @parent ReadingPopupSet
+ * @type boolean
+ * @on 启用
+ * @off 禁用
+ * @desc 启用后，阅读弹窗弹出期间暂时禁用确定键和取消键（含触摸点击/右键），防止快速跳过。
+ *       禁用时长由参数「防跳过时长」决定（默认 1.5 秒），时长结束后按键恢复可用。
+ * @default true
+ *
+ * @param ReadingPopupAntiSkipTime
+ * @text 防跳过时长
+ * @parent ReadingPopupSet
+ * @type number
+ * @min 0
+ * @desc 防跳过锁定的持续帧数（1秒=60帧）。锁定期间确定键、取消键及触摸点击/右键均无效，
+ *       防止弹窗刚出现就被按掉。0 表示不锁定。
+ * @default 90
  *
  * @param MenuSet
  * @text ====词典菜单设置====
@@ -1341,6 +1367,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     GF.Param.GGMReadingPopupWindowSet = DataManager.setupWindowInitParam(
         JSON.parse(GF.Parameters['ReadingPopupWindowSet'] || '{}')
     );
+    GF.Param.GGMReadingPopupAntiSkip = eval(GF.Parameters['ReadingPopupAntiSkip'] || 'true');
+    GF.Param.GGMReadingPopupAntiSkipTime = Number(GF.Parameters['ReadingPopupAntiSkipTime'] || 90);
 
     // ---- 窗口设置 ----
     GF.Param.GGMHelpWindowSet = DataManager.setupWindowInitParam(
@@ -3597,9 +3625,15 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     Scene_GFGlossaryReading.prototype.create = function () {
         Scene_Base.prototype.create.call(this);
         this._closeReady = false; // 延迟一帧再接受关闭输入
+        this._inputLockFrames = 0; // 防跳过：剩余禁用输入帧数
         this.createDisplayBackground();
         this.createWindowLayer();
         this.createReadingWindow();
+        // 防跳过：弹出动画播放期间暂时禁用确定键和取消键（含触摸点击/右键），
+        // 禁用时长 = 「防跳过时长」参数（帧）。
+        if (GF.Param.GGMReadingPopupAntiSkip) {
+            this._inputLockFrames = GF.Param.GGMReadingPopupAntiSkipTime || 0;
+        }
     };
 
     Scene_GFGlossaryReading.prototype.createDisplayBackground = function () {
@@ -3649,6 +3683,12 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         }
         if (!this._closeReady) {
             this._closeReady = true;
+            return;
+        }
+        // 防跳过：锁定期间忽略确定键和取消键（含触摸点击/右键），
+        // 防止弹出动画还没播完就按掉窗口。
+        if (this._inputLockFrames > 0) {
+            this._inputLockFrames--;
             return;
         }
         // 支持键盘（Enter/Esc）和触摸（点击/右键）关闭
