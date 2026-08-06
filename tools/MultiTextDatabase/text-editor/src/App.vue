@@ -7,6 +7,7 @@ import SaveAsDialog from "./components/SaveAsDialog.vue";
 import WorkDirDialog from "./components/WorkDirDialog.vue";
 import { api } from "./api";
 import { LINE_BREAK_BR, LINE_BREAK_N, displayFromFile, toFileForm } from "./format";
+import { moveNode } from "./reorder";
 
 const files = ref([]);
 const workRoot = ref(null);         // 当前文本库目录（绝对路径，null=未选择）
@@ -28,6 +29,9 @@ const showSaveAs = ref(false);
 const statusText = ref("就绪");
 const lastSavedAt = ref(null);
 const loading = ref(false);
+// 拖拽排序状态：dragInfo = 正在拖拽的节点；dropIndicator = 当前放置指示
+const dragInfo = ref(null);
+const dropIndicator = ref(null);
 let statusTimer = null;
 
 const activeGroupLabel = computed(() =>
@@ -53,6 +57,65 @@ function setValueAt(path, value) {
 // 键名合法性：不能含 . / \（. 是插件引用语法的路径分隔符），首尾不允许空白
 function isValidKeyName(name) {
     return /^[^.\/\\]+$/.test(name) && name.trim() === name && name.length > 0;
+}
+
+// ---------- 拖拽排序 ----------
+
+function onDragStart(info) {
+    dragInfo.value = info;
+    dropIndicator.value = null;
+}
+
+function onDragOver(info) {
+    // 与当前指示不同才更新，避免高频重复赋值
+    if (JSON.stringify(dropIndicator.value) !== JSON.stringify(info)) dropIndicator.value = info;
+}
+
+function onDragEnd() {
+    dragInfo.value = null;
+    dropIndicator.value = null;
+}
+
+function onDrop(info) {
+    const drag = dragInfo.value;
+    dropIndicator.value = null;
+    dragInfo.value = null;
+    if (!drag || !info) return;
+    let to;
+    if (info.placement === "inside" || info.placement === "append") {
+        to = { path: info.path.slice(), anchor: null, mode: "append" };
+    } else {
+        to = { path: info.path.slice(0, -1), anchor: info.path[info.path.length - 1], mode: info.placement };
+    }
+    moveNodeInDoc(drag.path, to);
+}
+
+function moveNodeInDoc(fromPath, to) {
+    const res = moveNode(doc.value, fromPath, to);
+    if (!res.changed) {
+        if (res.reason === "duplicate-key") {
+            toast(`目标分组已有同名键「${fromPath[fromPath.length - 1]}」，移动已取消`, true);
+        }
+        return;
+    }
+    if (res.doc !== doc.value) doc.value = res.doc;
+    syncPathsAfterMove(fromPath, to);
+    dirty.value = true;
+    const label = fromPath.join(".");
+    const target = to.path.length ? to.path.join(".") : "顶层";
+    toast(`已移动 ${label} → ${target}`);
+}
+
+// 移动后同步激活分组 / 焦点键路径（若它们指向被移动节点或其内部）
+function syncPathsAfterMove(fromPath, to) {
+    const fromKey = fromPath[fromPath.length - 1];
+    const newPath = to.path.concat(fromKey);
+    if (activeGroup.value && isDescendantOrSelf(fromPath, activeGroup.value)) {
+        activeGroup.value = newPath.concat(activeGroup.value.slice(fromPath.length));
+    }
+    if (focusKey.value && isDescendantOrSelf(fromPath, focusKey.value)) {
+        focusKey.value = newPath.concat(focusKey.value.slice(fromPath.length));
+    }
 }
 
 function toast(msg, isError = false, ms = 4000) {
@@ -229,7 +292,7 @@ function addGroup() {
     const name = prompt("新分组名：", "新分组");
     if (!name) return;
     if (!isValidKeyName(name)) { toast("分组名不能包含 . / \\ 字符", true); return; }
-    if (doc.value.hasOwnProperty(name)) { toast("同名分组已存在", true); return; }
+    if (Object.prototype.hasOwnProperty.call(doc.value, name)) { toast("同名分组已存在", true); return; }
     doc.value[name] = {};
     dirty.value = true;
     toast("已新增分组 " + name);
@@ -241,7 +304,7 @@ function addKey(path) {
     const name = prompt("新键名：", "text" + (Object.keys(parent).length + 1));
     if (!name) return;
     if (!isValidKeyName(name)) { toast("键名不能包含 . / \\ 字符", true); return; }
-    if (parent.hasOwnProperty(name)) { toast("同名键已存在", true); return; }
+    if (Object.prototype.hasOwnProperty.call(parent, name)) { toast("同名键已存在", true); return; }
     parent[name] = "";
     dirty.value = true;
     toast("已新增键 " + name);
@@ -256,13 +319,16 @@ function isDescendantOrSelf(ancestorPath, p) {
     return true;
 }
 
-function renameAt(path) {
+function renameAt(path, newName) {
     const oldName = path[path.length - 1];
-    const newName = prompt("新名称：", oldName);
+    // 内联编辑直接传入新名；无参时保留 prompt 兜底（兼容其它入口）
+    if (newName === undefined || newName === null) {
+        newName = prompt("新名称：", oldName);
+    }
     if (!newName || newName === oldName) return;
     if (!isValidKeyName(newName)) { toast("名称不能包含 . / \\ 字符", true); return; }
     const parent = path.length > 1 ? getValueAt(path.slice(0, -1)) : doc.value;
-    if (parent.hasOwnProperty(newName)) { toast("同名键已存在", true); return; }
+    if (Object.prototype.hasOwnProperty.call(parent, newName)) { toast("同名键已存在", true); return; }
     const value = parent[oldName];
     delete parent[oldName];
     parent[newName] = value;
@@ -383,12 +449,18 @@ onBeforeUnmount(() => {
         :key="currentName"
         :doc="doc"
         :selected-path="focusKey"
+        :drag-info="dragInfo"
+        :indicator="dropIndicator"
         @select="select"
         @group-select="groupSelect"
         @add-group="addGroup"
         @add-key="addKey"
         @rename="renameAt"
         @remove="removeAt"
+        @drag-start="onDragStart"
+        @drag-over="onDragOver"
+        @drop="onDrop"
+        @drag-end="onDragEnd"
       />
       <div v-else class="placeholder">
         <p>{{ workRoot ? "← 在左侧选择一个文本文件，或点击「＋」新建" : "点击「📁 选择目录」指定文本库位置" }}</p>
@@ -401,8 +473,15 @@ onBeforeUnmount(() => {
         :doc="doc"
         :group-path="activeGroup"
         :focus-key="focusKey"
+        :drag-info="dragInfo"
+        :indicator="dropIndicator"
         @update-key="updateKeyAt"
         @notify="toast"
+        @rename="renameAt"
+        @drag-start="onDragStart"
+        @drag-over="onDragOver"
+        @drop="onDrop"
+        @drag-end="onDragEnd"
       />
     </main>
 

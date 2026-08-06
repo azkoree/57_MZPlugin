@@ -10,7 +10,8 @@ export function convertStrings(obj, fn) {
     if (typeof obj === "string") return fn(obj);
     if (obj === null || typeof obj !== "object") return obj;
     if (Array.isArray(obj)) return obj.map((x) => convertStrings(x, fn));
-    const out = {};
+    // Object.create(null) 重建：避免数据含 __proto__ 键时触发原型 setter 丢键
+    const out = Object.create(null);
     for (const k of Object.keys(obj)) out[k] = convertStrings(obj[k], fn);
     return out;
 }
