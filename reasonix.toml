@@ -1,2 +1,0 @@
-[permissions]
-allow = ["Bash=git -C \"tools/text-editor\" rev-parse --is-inside-work-tree 2>&1; echo \"---root---\"; git -C . rev-parse --is-inside-work-tree 2>&1; echo \"---status---\"; git -C \"tools/text-editor\" status --short 2>&1 | head -30", "Bash=git -C . status --short 2>&1 | head -40; echo \"===log===\"; git -C . log --oneline -5 2>&1; echo \"===root-files===\"; ls -a . | head -40"]
