@@ -8,13 +8,13 @@ Imported.WSQ_Achievement = true;
 
 var WSQ = WSQ || {};
 WSQ.ACH = WSQ.ACH || {};
-WSQ.ACH.version = 1.00;
+WSQ.ACH.version = 1.10;
 WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 /*:
  * @target MZ
  * @author WSQ
- * @plugindesc [v1.00]        系统 - 成就系统（GF适配版，脱离DM_Common）
+ * @plugindesc [v1.10]        系统 - 成就系统（GF适配版，脱离DM_Common）
  * @base GF_0_CoreOfGame
  * @orderAfter GF_0_CoreOfGame
  * @base GF_1_CoreOfSpriteUI
@@ -37,6 +37,7 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * - 列表项美化：第一行可绘制渐变色背景条（长度、左右颜色可调，支持透明）；
  *   整块项目背景与光标样式均可复用窗口核心的样式配置（见「项目背景」「项目光标」参数）
  * - 分类模式：支持窗口分类列表与精灵按钮分类（通过「分类显示模式」参数切换）
+ * - 图标样式：成就项支持「小图标」「大图标」两种列表样式（见「成就图标样式」参数组）
  *
  * 使用步骤：
  * 1. 在「成就分类」参数中配置自定义分类（如：战斗、探索、收集）。
@@ -46,6 +47,40 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * 5. 系统字段自动更新值，自定义字段通过插件指令「增加指定统计值」更新。
  * 6. 更新统计值时会自动检测成就条件，达成时自动发放奖励并提示。
  * 7. 插件指令「打开成就界面」可随时查看成就列表。
+ *
+ * ============================================================================
+ * 成就图标样式（小图标 / 大图标）
+ * ============================================================================
+ * 参数组「── 成就图标样式 ──」用于切换成就列表项的整体排版样式。
+ *
+ * ■ 小图标（默认，与旧版完全一致）
+ *   使用数据库图标集，图标绘制在第一行名称左侧，尺寸固定为系统图标尺寸。
+ *   ┌──────────────────────────────────────────┐
+ *   │ [图标] 成就名称                进度 / 已完成 │
+ *   │ 成就描述                        奖励摘要右对齐 │
+ *   └──────────────────────────────────────────┘
+ *
+ * ■ 大图标
+ *   在列表项左侧绘制一张自定义图片，尺寸由「大图标尺寸」参数决定（1:1 正方形）。
+ *   成就名称与成就描述会整体向右偏移「大图标尺寸 + 间距」，为图标让出位置；
+ *   若图标高度大于两行文字的总高度，列表项高度会自动撑开，文字块垂直居中。
+ *   ┌──────────────────────────────────────────┐
+ *   │ ┌──────┐  成就名称              进度 / 已完成 │
+ *   │ │ 大图 │  成就描述               奖励摘要右对齐 │
+ *   │ └──────┘                                  │
+ *   └──────────────────────────────────────────┘
+ *
+ * ■ 大图标图片放在哪里
+ *   「成就大图标」参数采用与「设置窗口贴图」相同的【文件选择对话框】样式（@type file @dir img/），
+ *   点击右侧按钮即可从 img/ 下的任意子目录里挑图——pictures/、UI_Achievement/、UI_Menu/ 等都能选，
+ *   不用再手写路径。值存为相对 img/ 的路径（如 UI_Menu/moon02），加载时由
+ *   ImageManager.loadCustomBitmap 自动拼上 img/ 前缀。
+ *   这样同一个成就列表里，不同成就的大图完全可以来自不同文件夹。
+ *
+ * ■ 未配置图片时的回退
+ *   某条成就没有配置「成就大图标」时：
+ *     - 「无图时放大图标集」开启 → 把该成就的「成就图标」放大到大图标尺寸绘制；
+ *     - 关闭 → 该处留空，但名称与描述依然保持偏移，列表对齐不会错乱。
  *
  * ============================================================================
  * 前置需求
@@ -322,6 +357,65 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *       分类按钮会自动从成就分类配置中检测可用分类生成。
  * @default []
  *
+ * @param iconStyleGroup
+ * @text ── 成就图标样式 ──
+ *
+ * @param iconStyle
+ * @parent iconStyleGroup
+ * @text 列表图标样式
+ * @type select
+ * @option 小图标
+ * @option 大图标
+ * @desc 小图标=延续原样式（图标集图标画在名称左侧）；大图标=左侧绘制自定义图片，名称与描述整体右移让位。
+ * @default 小图标
+ *
+ * @param bigIconSize
+ * @parent iconStyleGroup
+ * @text 大图标尺寸
+ * @type number
+ * @min 8
+ * @desc 【大图标样式专用】大图标的边长，单位像素，长宽一比一（正方形）。
+ *       名称与描述会按该尺寸向右偏移；尺寸大于两行文字总高时，列表项高度自动撑开。
+ * @default 64
+ *
+ * @param bigIconSpacing
+ * @parent iconStyleGroup
+ * @text 大图标与文字间距
+ * @type number
+ * @min 0
+ * @desc 【大图标样式专用】大图标右边缘到成就名称/描述之间的横向间距，单位像素。
+ * @default 8
+ *
+ * @param bigIconOffsetX
+ * @parent iconStyleGroup
+ * @text 大图标位置修正 X
+ * @desc 【大图标样式专用】微调大图标的横向位置，负数向左，正数向右，单位像素。不影响文字偏移量。
+ * @default 0
+ *
+ * @param bigIconOffsetY
+ * @parent iconStyleGroup
+ * @text 大图标位置修正 Y
+ * @desc 【大图标样式专用】微调大图标的纵向位置，负数向上，正数向下，单位像素。不影响文字偏移量。
+ * @default 0
+ *
+ * @param bigIconKeepRatio
+ * @parent iconStyleGroup
+ * @text 大图标保持比例
+ * @type boolean
+ * @on 保持比例
+ * @off 拉伸填满
+ * @desc 【大图标样式专用】图片非正方形时的处理方式。保持比例=等比缩放后居中放置，拉伸填满=强制拉成正方形。
+ * @default true
+ *
+ * @param bigIconFallbackIcon
+ * @parent iconStyleGroup
+ * @text 无图时放大图标集
+ * @type boolean
+ * @on 放大图标集
+ * @off 留空
+ * @desc 【大图标样式专用】成就未配置「成就大图标」图片时，是否把该成就的「成就图标」放大到大图标尺寸绘制。
+ * @default true
+ *
  * @param itemRowBar
  * @text ── 列表项样式 ──
  *
@@ -355,6 +449,16 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @decimals 2
  * @desc 渐变背景宽度占成就项内容宽度的比例（0~1），从左往右绘制。
  * @default 0.6
+ *
+ * @param itemRowBarCoverIcon
+ * @parent itemRowBar
+ * @text 渐变背景包含图标区
+ * @type boolean
+ * @on 从项目左边缘起
+ * @off 从文字左边缘起
+ * @desc 【大图标样式专用】渐变背景条的起点位置。开启=从项目最左侧起（会铺在大图标下方），
+ *       关闭=从名称文字的左边缘起（大图标不被色条压住）。小图标样式下该参数无效。
+ * @default false
  *
  * @param itemBackEnable
  * @parent itemRowBar
@@ -434,7 +538,16 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text 成就图标
  * @type icon
  * @default 0
- * @desc 显示在成就列表项第一行左侧的图标
+ * @desc 显示在成就列表项第一行左侧的图标（小图标样式使用；大图标样式下作为无图时的回退）
+ *
+ * @param bigIcon
+ * @text 成就大图标
+ * @type file
+ * @dir img/
+ * @default
+ * @desc 【大图标样式专用】该成就的专属大图，点击右侧按钮从文件选择对话框里挑（可浏览 img/ 下任意子目录，
+ *       如 pictures/、UI_Achievement/、UI_Menu/ 等）。值存为相对 img/ 的路径（不含扩展名），例如 UI_Menu/moon02。
+ *       留空则按「无图时放大图标集」参数决定：放大绘制上面的成就图标，或者留空。
  *
  * @param condition
  * @text 触发条件
@@ -1129,6 +1242,35 @@ WSQ.ACH.resolveColor = function (colorStr) {
     if (!isNaN(n)) return ColorManager.textColor(n);
     return '#ffffff';
 };
+
+// ============================================================================
+// 成就图标样式（小图标 / 大图标）工具
+// ============================================================================
+// 读取数值型插件参数，非法时回退默认值
+WSQ.ACH.numParam = function (key, def) {
+    const n = Number(WSQ.Param.ACH[key]);
+    return Number.isFinite(n) ? n : def;
+};
+
+// 当前是否为大图标样式
+WSQ.ACH.isBigIconStyle = function () {
+    return String(WSQ.Param.ACH.iconStyle || '小图标') === '大图标';
+};
+
+// 大图标边长（1:1 正方形），非法值回退 64
+WSQ.ACH.bigIconSize = function () {
+    const n = WSQ.ACH.numParam('bigIconSize', 64);
+    return n > 0 ? Math.floor(n) : 64;
+};
+
+// 大图标与文字的横向间距
+WSQ.ACH.bigIconSpacing = function () {
+    const n = WSQ.ACH.numParam('bigIconSpacing', 8);
+    return n >= 0 ? Math.floor(n) : 8;
+};
+
+// 大图标加载：直接复用 GF 的 ImageManager.loadCustomBitmap(folder/filename)，
+// 其入参为相对 img/ 的路径（如 UI_Menu/moon02），与「设置窗口贴图」的参数样式一致。
 
 // ============================================================================
 // 预处理成就规则：生成条件函数 & 奖励函数 & 依赖图
@@ -1950,12 +2092,23 @@ class Window_AchievementList extends Window_Selectable {
         }
     }
 
-    // 每项两行：图标+名称一行，描述+奖励一行（含上下内边距，确保不超出不重叠）
-    itemHeight() {
+    // 两行文字（名称行 + 描述行）的总高度
+    textBlockHeight() {
         const lh = this.lineHeight();
         const rowSpace = Number(this._windowSet.RowSpace) || 5;
-        const pad = this.itemPadding();
-        return lh * 2 + rowSpace + pad * 2;
+        return lh * 2 + rowSpace;
+    }
+
+    // 项目内容区高度：大图标样式下，图标比两行文字高时由图标撑开
+    contentBlockHeight() {
+        const textH = this.textBlockHeight();
+        if (!WSQ.ACH.isBigIconStyle()) return textH;
+        return Math.max(textH, WSQ.ACH.bigIconSize());
+    }
+
+    // 每项两行：图标+名称一行，描述+奖励一行（含上下内边距，确保不超出不重叠）
+    itemHeight() {
+        return this.contentBlockHeight() + this.itemPadding() * 2;
     }
 
     setCategory(symbol) {
@@ -2005,6 +2158,52 @@ class Window_AchievementList extends Window_Selectable {
         this.contentsBack.gradientFillNormalRect(x, y, barW, height, colorL, colorR);
     }
 
+    // 绘制大图标：优先用成就配置的图片，没有图片时按参数回退为放大的图标集图标
+    _drawBigIcon(rule, x, y, size) {
+        const file = String(rule.bigIcon || "").trim();
+        if (file) {
+            const bitmap = ImageManager.loadCustomBitmap(file);
+            if (bitmap && !bitmap.isReady()) {
+                // 图片异步加载中，登记回调，加载完成后重绘一次
+                this._reserveBigIconRefresh(bitmap);
+                return;
+            }
+            if (bitmap && bitmap.width > 0 && bitmap.height > 0) {
+                const bw = bitmap.width;
+                const bh = bitmap.height;
+                let dw = size;
+                let dh = size;
+                // 保持比例：等比缩放到正方形区域内并居中；否则强制拉伸填满
+                if (WSQ.Param.ACH.bigIconKeepRatio !== false) {
+                    const scale = Math.min(size / bw, size / bh);
+                    dw = Math.max(1, Math.floor(bw * scale));
+                    dh = Math.max(1, Math.floor(bh * scale));
+                }
+                const dx = x + Math.floor((size - dw) / 2);
+                const dy = y + Math.floor((size - dh) / 2);
+                this.contents.blt(bitmap, 0, 0, bw, bh, dx, dy, dw, dh);
+                return;
+            }
+        }
+        // 回退：把图标集图标放大到大图标尺寸（GF 的 drawIcon 支持自定义宽高缩放）
+        if (WSQ.Param.ACH.bigIconFallbackIcon === false) return;
+        const iconIndex = Number(rule.iconIndex) || 0;
+        if (iconIndex > 0) {
+            this.drawIcon(iconIndex, x, y, size, size);
+        }
+    }
+
+    // 大图标贴图异步加载完成后触发一次刷新（同一张图只登记一次，避免循环刷新）
+    _reserveBigIconRefresh(bitmap) {
+        if (!this._achPendingBigIcons) this._achPendingBigIcons = [];
+        if (this._achPendingBigIcons.includes(bitmap)) return;
+        this._achPendingBigIcons.push(bitmap);
+        bitmap.addLoadListener(() => {
+            if (this._destroyed || !this.contents) return;
+            this.refresh();
+        });
+    }
+
     drawItem(index) {
         const rule = this.itemAt(index);
         if (!rule) return;
@@ -2016,19 +2215,49 @@ class Window_AchievementList extends Window_Selectable {
         const innerX = rect.x + pad;
         const innerY = rect.y + pad;
         const innerW = rect.width - pad * 2;
+        const textH = this.textBlockHeight();
+        const contentH = this.contentBlockHeight();
 
-        // 第一行渐变背景（图标+名称行的底色）
-        this._drawItemRowBar(innerX, innerY, innerW, lh);
+        // 文字块起点：小图标样式即项目左上角；大图标样式向右偏移让出图标位置，
+        // 且当图标比两行文字高时，文字块在项目内垂直居中
+        const bigStyle = WSQ.ACH.isBigIconStyle();
+        let textX = innerX;
+        let textW = innerW;
+        const textY = innerY + Math.floor((contentH - textH) / 2);
+        let barX = innerX;
+        let barW = innerW;
 
-        // 第一行：图标 + 名称（左）+ 进度/已完成（右对齐）
-        const iconW = ImageManager.iconWidth;
-        const iconH = ImageManager.iconHeight;
-        const iconY = innerY + Math.floor((lh - iconH) / 2);
-        const iconIndex = Number(rule.iconIndex) || 0;
-        let nameX = innerX;
-        if (iconIndex > 0) {
-            this.drawIcon(iconIndex, innerX, iconY, iconW, iconH);
-            nameX = innerX + iconW + 4;
+        if (bigStyle) {
+            const size = WSQ.ACH.bigIconSize();
+            const gap = WSQ.ACH.bigIconSpacing();
+            const iconX = innerX + WSQ.ACH.numParam('bigIconOffsetX', 0);
+            const iconY = innerY + Math.floor((contentH - size) / 2) + WSQ.ACH.numParam('bigIconOffsetY', 0);
+            this._drawBigIcon(rule, iconX, iconY, size);
+            textX = innerX + size + gap;
+            textW = Math.max(innerW - size - gap, 1);
+            // 渐变条默认从文字左边缘起（不压住大图标），可用参数改为铺满整项
+            if (WSQ.Param.ACH.itemRowBarCoverIcon !== true) {
+                barX = textX;
+                barW = textW;
+            }
+        }
+
+        // 第一行渐变背景（名称行的底色）
+        this._drawItemRowBar(barX, textY, barW, lh);
+
+        // 第一行：图标（仅小图标样式）+ 名称（左）+ 进度/已完成（右对齐）
+        let nameX = textX;
+        let nameAvailW = textW;
+        if (!bigStyle) {
+            const iconW = ImageManager.iconWidth;
+            const iconH = ImageManager.iconHeight;
+            const iconIndex = Number(rule.iconIndex) || 0;
+            if (iconIndex > 0) {
+                const iconY = textY + Math.floor((lh - iconH) / 2);
+                this.drawIcon(iconIndex, textX, iconY, iconW, iconH);
+                nameX = textX + iconW + 4;
+                nameAvailW = textW - (iconW + 4);
+            }
         }
         const name = String(rule.achievementName || rule.ruleName || "");
         // 进度文本：达成显示"已完成！"，否则显示 current/target
@@ -2046,8 +2275,7 @@ class Window_AchievementList extends Window_Selectable {
         }
         const progressFullText = progressText ? `\\C[${progressColorNum}]${progressText}\\C[0]` : "";
         const progressW = progressFullText ? this.textWidthEx(progressFullText) + 16 : 0;
-        const nameOffset = nameX - innerX;
-        const nameW = innerW - nameOffset - progressW;
+        const nameW = Math.max(nameAvailW - progressW, 1);
 
         this.changePaintOpacity(granted);
         this.resetTextColor();
@@ -2057,33 +2285,33 @@ class Window_AchievementList extends Window_Selectable {
         } else {
             this.changeTextColor(ColorManager.crisisColor());
         }
-        this.drawTextEx(name, nameX, innerY, nameW);
+        this.drawTextEx(name, nameX, textY, nameW);
         this.changePaintOpacity(true);
         // 进度右对齐：区域起点 = nameX + nameW，宽度 = progressW
         if (progressFullText) {
             this.changePaintOpacity(true);
             this.resetTextColor();
-            this.drawTextEx(progressFullText, nameX + nameW, innerY, progressW, "right");
+            this.drawTextEx(progressFullText, nameX + nameW, textY, progressW, "right");
         }
 
         // 第二行：描述（左）+ 奖励摘要（右对齐）
-        const descY = innerY + lh + rowSpace;
+        const descY = textY + lh + rowSpace;
         const stats = $gameSystem._achievementStats;
         const summary = String(WSQ.ACH.buildRewardSummary(rule, stats) || "");
         const summaryW = this.textWidthEx(summary);
-        const reserveW = Math.min(innerW * 0.55, Math.max(summaryW + 12, 0));
-        const descW = innerW - reserveW;
+        const reserveW = Math.min(textW * 0.55, Math.max(summaryW + 12, 0));
+        const descW = Math.max(textW - reserveW, 1);
 
         this.changePaintOpacity(granted);
         const desc = String(rule.desc || "");
         if (desc) {
-            this.drawTextEx(desc, innerX, descY, descW);
+            this.drawTextEx(desc, textX, descY, descW);
         }
-        // 奖励右对齐：右侧区域起点 = innerX + descW，宽度 = reserveW，GF 原生 align="right"
+        // 奖励右对齐：右侧区域起点 = textX + descW，宽度 = reserveW，GF 原生 align="right"
         if (summary) {
             this.changePaintOpacity(true);
             this.resetTextColor();
-            this.drawTextEx(summary, innerX + descW, descY, reserveW, "right");
+            this.drawTextEx(summary, textX + descW, descY, reserveW, "right");
         }
         this.changePaintOpacity(true);
     }
