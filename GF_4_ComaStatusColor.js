@@ -15,8 +15,8 @@ GF.CSC.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.03]        界面 - 详细信息/状态画面颜色/显示/字体
- * @author 用户指定
- * @url https://afdian.net/a/ganfly
+ * @author 五十七
+ * @url 
  * @orderAfter GF_1_CoreOfMenuActor
  * @base GF_1_CoreOfMenuActor
  * @orderAfter GF_0_CoreOfGame

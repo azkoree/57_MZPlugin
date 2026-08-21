@@ -13,7 +13,7 @@ WSQ.MTD.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 /*:
  * @target MZ
- * @author WSQ
+ * @author 五十七
  * @plugindesc [v1.00]        文本 - 多文件文本库（剧本分卷引用）
  *
  * @help

@@ -9,7 +9,7 @@ Imported.MoveLikeArcade = true;
 /*:
  * @target MZ
  * @plugindesc [v1.00] 街机式移动模式 - 上下移动保持朝向，左右移动改变朝向
- * @author 57 & deepseek
+ * @author 五十七
  * @url
  * @help
  * ============================================================================

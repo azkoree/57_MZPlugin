@@ -15,8 +15,8 @@ GF.SNC.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        界面 - 贴图按钮名称颜色
- * @author 用户指定
- * @url https://afdian.net/a/ganfly
+ * @author 五十七
+ * @url 
  * @orderAfter GF_1_CoreOfSpriteUI
  * @base GF_1_CoreOfSpriteUI
  * @orderAfter GF_0_CoreOfText

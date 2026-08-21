@@ -15,7 +15,7 @@ GF.ESM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.03]         系统 - 简易技能熟练度
- * @author 57 & deepseek
+ * @author 五十七
  * @url 
  * @orderAfter GF_2_CoreOfSkillElement
  * @base GF_2_CoreOfSkillElement

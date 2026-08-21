@@ -15,7 +15,7 @@ GF.CLE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 /*:
  * @target MZ
  * @plugindesc [v1.00]        战斗 - 敌人召唤
- * @author 57 & deepseek
+ * @author 五十七
  * @url
  * @orderAfter GF_0_CoreOfGame
  * @base GF_0_CoreOfGame

@@ -43,8 +43,8 @@ WSQ.PST._pendingMoves = WSQ.PST._pendingMoves || {};
 /*:
  * @target MZ
  * @plugindesc [v1.20]        演出 - 图片演出（事件相对显示、原点设置、移动演出、演出预设、套用 GF 移动动画）
- * @author WSQ
- * @url https://afdian.net/a/ganfly
+ * @author 五十七
+ * @url 
  *
  * @base GF_0_CoreOfMech
  * @base GF_1_CoreOfSpriteUI

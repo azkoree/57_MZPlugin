@@ -13,7 +13,7 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 /*:
  * @target MZ
- * @author WSQ
+ * @author 五十七
  * @plugindesc [v1.10]        系统 - 成就系统（GF适配版，脱离DM_Common）
  * @base GF_0_CoreOfGame
  * @orderAfter GF_0_CoreOfGame
