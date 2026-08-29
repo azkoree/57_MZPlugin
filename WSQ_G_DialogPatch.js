@@ -8,13 +8,13 @@ Imported.WSQ_G_DialogPatch = true;
 
 var WSQ = WSQ || {};
 WSQ.DP = WSQ.DP || {};
-WSQ.DP.version = 1.08;
+WSQ.DP.version = 1.12;
 WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 //=============================================================================
 /*:
  * @target MZ
- * @plugindesc [v1.08]        系统 - 对话核心补丁（内联姓名/姓名渐变背景/姓名分隔线/气泡定位/气泡偏移/气泡动态宽高/对话框自动换行控制/字体装饰\font）
+ * @plugindesc [v1.12]        系统 - 对话核心补丁（内联姓名/姓名渐变背景/姓名分隔线/气泡定位/气泡偏移/气泡箭头偏移/气泡动态宽高/对话框自动换行控制/字体装饰\font）
  * @author WSQ
  * @url https://afdian.net/a/ganfly
  * @orderAfter GF_2_CoreOfDialog
@@ -37,7 +37,14 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *                     名称 (event 3) / follower: 名称”等，自动以气泡形式
  *                     定位到对应角色/事件头顶（详见参数「启用姓名自动定位气泡」）。
  *  4. 气泡目标脚本接口：WSQ.DP.setBubbleTarget(spec)，见下方「脚本接口」。
- *  5. 气泡独立偏移  ：参数「气泡偏移 X/Y」只调整气泡框位置，不影响普通对话窗口。
+ *  5. 气泡独立偏移  ：参数「气泡偏移 X / 气泡到目标距离 Y·头顶 / 气泡到目标距离 Y·脚下」
+ *                     只调整气泡框位置，不影响普通对话窗口。
+ *                     两个 Y 参数分别控制气泡在目标【头顶上方】与【脚下】时的“到目标距离”
+ *                     （正值离目标更远，负值更近），可分别微调。
+ *   5a. 气泡箭头偏移  ：参数「气泡箭头到目标距离 Y·头顶 / Y·脚下」分别控制气泡在目标
+ *                     头顶上方与脚下时【箭头】与目标的距离（正值离目标更远、负值更近），
+ *                     按朝向生效，替代 GF 皮肤样式里不分朝向的箭头直接平移（bubble_arrow
+ *                     的 x/y 仍保留并与其叠加）。
  *  6. 姓名渐变背景  ：给姓名行加渐变背景条，参数见「姓名渐变背景」组。
  *  7. 姓名分隔线    ：姓名与正文间画渐变分隔线，参数见「姓名分隔线」组。
  *  8. 气泡动态宽高  ：文本里插 <dh>/</dh>、<dw>/</dw> 标签，气泡随文字实时伸缩。
@@ -95,7 +102,10 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *    WSQNameInline      enable:true/false   切换内联姓名
  *    WSQNameSeparator   enable:true/false   切换姓名分隔线
  *    WSQAutoBubbleByName enable:true/false  切换姓名自动定位气泡
- *    WSQBubbleOffset    OffsetX / OffsetY   设定气泡专属偏移
+ *    WSQBubbleOffset    OffsetX / OffsetYAbove / OffsetYBelow   设定气泡专属偏移
+ *                       （头顶/脚下分别设置；只传 OffsetY 时头顶/脚下同用）
+ *    WSQBubbleArrowOffset OffsetYAbove / OffsetYBelow   设定气泡箭头专属偏移
+ *                       （头顶/脚下分别设置；只传 OffsetY 时头顶/脚下同用）
  *    WSQAutoWordWrap    mode:auto/on/off    设定对话框自动换行
  *  （均写入存档，跨场景/读档保持）
  *
@@ -107,7 +117,10 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *      spec: 数字(>=1事件ID / 0本事件 / -1玩家 / <-1跟随者) 或 字符串
  *      ("aN"队伍角色 / 事件名 / 角色名) 或 null(清除)
  *    WSQ.DP.resolveBubbleTargetByName(name) / resolveBubbleDisplayName(name,target)
- *    WSQ.DP.bubbleOffset() / setBubbleOffset(x,y)
+ *    WSQ.DP.bubbleOffset() / setBubbleOffset(x, yAbove, yBelow)
+ *      （yAbove=头顶距离、yBelow=脚下距离；yBelow 省略时与 yAbove 相同）
+ *    WSQ.DP.bubbleArrowOffset() / setBubbleArrowOffset(yAbove, yBelow)
+ *      （气泡箭头到目标距离；yBelow 省略时与 yAbove 相同）
  *    WSQ.DP.resolveColor(str)            解析渐变颜色（数字色号 / #rrggbb / opacity）
  *    WSQ.DP.autoWordWrapMode() / setAutoWordWrap(mode)
  *    Window_Message#formatSpeakerName(name)
@@ -261,14 +274,47 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 气泡对话框的专属水平偏移（像素）。仅作用于气泡窗口，不影响普通对话窗口；
  *       与通用消息偏移叠加。可用插件指令 WSQBubbleOffset / 脚本 WSQ.DP.setBubbleOffset 覆盖。
  *
- * @param BubbleOffsetY
- * @text 气泡偏移 Y
+ * @param BubbleOffsetYAbove
+ * @text 气泡到目标距离 Y·头顶
  * @type number
  * @min -9999
  * @max 9999
  * @default 0
- * @desc 气泡对话框的专属垂直偏移（像素）。仅作用于气泡窗口，不影响普通对话窗口；
+ * @desc 气泡显示在目标【头顶上方】时，与目标之间的额外垂直间隙（像素），即“到对话框目标的距离”。
+ *       正值=离目标更远，负值=更靠近目标。仅作用于气泡窗口，不影响普通对话窗口；
  *       与通用消息偏移叠加。可用插件指令 WSQBubbleOffset / 脚本 WSQ.DP.setBubbleOffset 覆盖。
+ *
+ * @param BubbleOffsetYBelow
+ * @text 气泡到目标距离 Y·脚下
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc 气泡显示在目标【脚下】时，与目标之间的额外垂直间隙（像素），即“到对话框目标的距离”。
+ *       正值=离目标更远，负值=更靠近目标。仅作用于气泡窗口，不影响普通对话窗口；
+ *       与通用消息偏移叠加。可用插件指令 WSQBubbleOffset / 脚本 WSQ.DP.setBubbleOffset 覆盖。
+ *
+ * @param BubbleArrowOffsetYAbove
+ * @text 气泡箭头到目标距离 Y·头顶
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc 气泡在目标【头顶上方】时，气泡箭头与目标之间的额外距离（像素）。
+ *       正值=箭头离目标更远（缩回气泡内），负值=箭头离目标更近（伸出贴目标）。
+ *       仅作用于气泡箭头，不影响气泡框位置；与 GF 皮肤样式的箭头平移（bubble_arrow 的 x/y）
+ *       叠加。可用插件指令 WSQBubbleArrowOffset / 脚本 WSQ.DP.setBubbleArrowOffset 覆盖。
+ *
+ * @param BubbleArrowOffsetYBelow
+ * @text 气泡箭头到目标距离 Y·脚下
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc 气泡在目标【脚下】时，气泡箭头与目标之间的额外距离（像素）。
+ *       正值=箭头离目标更远（缩回气泡内），负值=箭头离目标更近（伸出贴目标）。
+ *       仅作用于气泡箭头，不影响气泡框位置；与 GF 皮肤样式的箭头平移（bubble_arrow 的 x/y）
+ *       叠加。可用插件指令 WSQBubbleArrowOffset / 脚本 WSQ.DP.setBubbleArrowOffset 覆盖。
  *
  * @param AutoWordWrap
  * @text 对话框自动换行
@@ -374,7 +420,10 @@ WSQ.DP.Param.AutoBubbleByName = String(
 ).trim().toLowerCase() === "true";
 
 WSQ.DP.Param.BubbleOffsetX = Number(WSQ.DP.Parameters["BubbleOffsetX"] || 0) || 0;
-WSQ.DP.Param.BubbleOffsetY = Number(WSQ.DP.Parameters["BubbleOffsetY"] || 0) || 0;
+WSQ.DP.Param.BubbleOffsetYAbove = Number(WSQ.DP.Parameters["BubbleOffsetYAbove"] || 0) || 0;
+WSQ.DP.Param.BubbleOffsetYBelow = Number(WSQ.DP.Parameters["BubbleOffsetYBelow"] || 0) || 0;
+WSQ.DP.Param.BubbleArrowOffsetYAbove = Number(WSQ.DP.Parameters["BubbleArrowOffsetYAbove"] || 0) || 0;
+WSQ.DP.Param.BubbleArrowOffsetYBelow = Number(WSQ.DP.Parameters["BubbleArrowOffsetYBelow"] || 0) || 0;
 
 // 对话框自动换行模式：auto（跟随 GF_0_CoreOfText 全局开关）/ on（强制开启）/ off（强制关闭）。
 let autoWordWrap = String(WSQ.DP.Parameters["AutoWordWrap"] || "auto").trim().toLowerCase();
@@ -489,29 +538,72 @@ WSQ.DP._forcedBubbleTarget = undefined;
 
 // 气泡对话框专属偏移的“按对话”临时覆盖（仅作用于该条气泡对话，结束后复位）。
 //   undefined -> 未指定，回退到运行时/参数默认值
-//   其余     -> { x, y } 对象
+//   其余     -> { x, yAbove, yBelow } 对象（yAbove=头顶距离，yBelow=脚下距离）
 WSQ.DP._forcedBubbleOffset = undefined;
 
 // 解析当前生效的气泡专属偏移（按对话覆盖 > 运行时存档 > 插件参数）。
+// 返回 { x, yAbove, yBelow }：yAbove 为气泡在目标头顶上方时的“到目标距离”，
+// yBelow 为气泡在目标脚下时的“到目标距离”。
 WSQ.DP.bubbleOffset = function () {
     if (WSQ.DP._forcedBubbleOffset) {
         return WSQ.DP._forcedBubbleOffset;
     }
-    if ($gameSystem && $gameSystem._wsqDpBubbleOffsetX !== undefined) {
-        return { x: $gameSystem._wsqDpBubbleOffsetX, y: $gameSystem._wsqDpBubbleOffsetY };
+    // 新运行时字段（插件指令 WSQBubbleOffset 新写法写入，上下分离）
+    if ($gameSystem && $gameSystem._wsqDpBubbleOffsetYAbove !== undefined) {
+        return { x: $gameSystem._wsqDpBubbleOffsetX, yAbove: $gameSystem._wsqDpBubbleOffsetYAbove, yBelow: $gameSystem._wsqDpBubbleOffsetYBelow };
     }
-    return { x: WSQ.DP.Param.BubbleOffsetX, y: WSQ.DP.Param.BubbleOffsetY };
+    // 旧存档/旧插件指令兼容：仅设过 _wsqDpBubbleOffsetY → 头顶/脚下同用
+    if ($gameSystem && $gameSystem._wsqDpBubbleOffsetX !== undefined) {
+        return { x: $gameSystem._wsqDpBubbleOffsetX, yAbove: $gameSystem._wsqDpBubbleOffsetY, yBelow: $gameSystem._wsqDpBubbleOffsetY };
+    }
+    return { x: WSQ.DP.Param.BubbleOffsetX, yAbove: WSQ.DP.Param.BubbleOffsetYAbove, yBelow: WSQ.DP.Param.BubbleOffsetYBelow };
 };
 
 // 便捷脚本接口：设定下一段（气泡）对话的气泡偏移。
-//   x, y 为像素偏移（与通用消息偏移叠加，仅作用于气泡窗口）。
-//   传 null/undefined（任一为 null 即视为清除）则恢复为参数/运行时默认值。
-WSQ.DP.setBubbleOffset = function (x, y) {
-    if (x === null || x === undefined || y === null || y === undefined) {
+//   x       水平像素偏移
+//   yAbove  气泡在目标头顶上方时的“到目标距离”（正值离目标更远、负值更近）
+//   yBelow  气泡在目标脚下时的“到目标距离”（可省略，省略时与 yAbove 相同）
+// 二者均与通用消息偏移叠加，仅作用于气泡窗口。
+// 兼容旧调用 setBubbleOffset(x, y)：y 同时应用到头顶与脚下。
+// 传 null/undefined（任一为 null 即视为清除）则恢复为参数/运行时默认值。
+WSQ.DP.setBubbleOffset = function (x, yAbove, yBelow) {
+    if (x === null || x === undefined || yAbove === null || yAbove === undefined) {
         WSQ.DP._forcedBubbleOffset = undefined;
         return;
     }
-    WSQ.DP._forcedBubbleOffset = { x: Number(x) || 0, y: Number(y) || 0 };
+    const below = (yBelow === null || yBelow === undefined) ? yAbove : yBelow;
+    WSQ.DP._forcedBubbleOffset = { x: Number(x) || 0, yAbove: Number(yAbove) || 0, yBelow: Number(below) || 0 };
+};
+
+// 气泡箭头专属偏移的“按对话”临时覆盖（仅作用于该条气泡对话，结束后复位）。
+//   undefined -> 未指定，回退到运行时/参数默认值
+//   其余     -> { yAbove, yBelow } 对象（yAbove=头顶距离，yBelow=脚下距离）
+WSQ.DP._forcedBubbleArrowOffset = undefined;
+
+// 解析当前生效的气泡箭头偏移（按对话覆盖 > 运行时存档 > 插件参数）。
+// 返回 { yAbove, yBelow }：yAbove 为气泡在目标头顶上方时箭头与目标的距离，
+// yBelow 为气泡在目标脚下时箭头与目标的距离（正值离目标更远、负值更近）。
+WSQ.DP.bubbleArrowOffset = function () {
+    if (WSQ.DP._forcedBubbleArrowOffset) {
+        return WSQ.DP._forcedBubbleArrowOffset;
+    }
+    if ($gameSystem && $gameSystem._wsqDpBubbleArrowOffsetYAbove !== undefined) {
+        return { yAbove: $gameSystem._wsqDpBubbleArrowOffsetYAbove, yBelow: $gameSystem._wsqDpBubbleArrowOffsetYBelow };
+    }
+    return { yAbove: WSQ.DP.Param.BubbleArrowOffsetYAbove, yBelow: WSQ.DP.Param.BubbleArrowOffsetYBelow };
+};
+
+// 便捷脚本接口：设定下一段（气泡）对话的气泡箭头偏移。
+//   yAbove  气泡在目标头顶上方时箭头与目标的距离（正值离目标更远、负值更近）
+//   yBelow  气泡在目标脚下时箭头与目标的距离（可省略，省略时与 yAbove 相同）
+// 传 null/undefined（任一为 null 即视为清除）则恢复为参数/运行时默认值。
+WSQ.DP.setBubbleArrowOffset = function (yAbove, yBelow) {
+    if (yAbove === null || yAbove === undefined) {
+        WSQ.DP._forcedBubbleArrowOffset = undefined;
+        return;
+    }
+    const below = (yBelow === null || yBelow === undefined) ? yAbove : yBelow;
+    WSQ.DP._forcedBubbleArrowOffset = { yAbove: Number(yAbove) || 0, yBelow: Number(below) || 0 };
 };
 
 // 把“aN”形式的字符串解析为队伍中对应数据库编号的角色（Game_Actor）。
@@ -719,10 +811,41 @@ PluginManager.registerCommand(WSQ.DP.pluginName, "WSQAutoBubbleByName", (args) =
 
 PluginManager.registerCommand(WSQ.DP.pluginName, "WSQBubbleOffset", (args) => {
     const x = Number(args.OffsetX || 0) || 0;
-    const y = Number(args.OffsetY || 0) || 0;
+    const hasAbove = args.OffsetYAbove !== undefined && String(args.OffsetYAbove) !== "";
+    const hasBelow = args.OffsetYBelow !== undefined && String(args.OffsetYBelow) !== "";
     if ($gameSystem) {
         $gameSystem._wsqDpBubbleOffsetX = x;
-        $gameSystem._wsqDpBubbleOffsetY = y;
+        if (hasAbove || hasBelow) {
+            // 新写法：头顶/脚下分别设置；未填的一项回退为已填的另一项
+            const yAbove = hasAbove ? (Number(args.OffsetYAbove) || 0) : (hasBelow ? (Number(args.OffsetYBelow) || 0) : 0);
+            const yBelow = hasBelow ? (Number(args.OffsetYBelow) || 0) : (hasAbove ? (Number(args.OffsetYAbove) || 0) : 0);
+            $gameSystem._wsqDpBubbleOffsetYAbove = yAbove;
+            $gameSystem._wsqDpBubbleOffsetYBelow = yBelow;
+        } else {
+            // 旧写法：仅传 OffsetY → 头顶/脚下同用（兼容旧事件/存档）
+            const y = Number(args.OffsetY || 0) || 0;
+            $gameSystem._wsqDpBubbleOffsetYAbove = y;
+            $gameSystem._wsqDpBubbleOffsetYBelow = y;
+        }
+    }
+});
+
+PluginManager.registerCommand(WSQ.DP.pluginName, "WSQBubbleArrowOffset", (args) => {
+    const hasAbove = args.OffsetYAbove !== undefined && String(args.OffsetYAbove) !== "";
+    const hasBelow = args.OffsetYBelow !== undefined && String(args.OffsetYBelow) !== "";
+    if ($gameSystem) {
+        if (hasAbove || hasBelow) {
+            // 头顶/脚下分别设置；未填的一项回退为已填的另一项
+            const yAbove = hasAbove ? (Number(args.OffsetYAbove) || 0) : (hasBelow ? (Number(args.OffsetYBelow) || 0) : 0);
+            const yBelow = hasBelow ? (Number(args.OffsetYBelow) || 0) : (hasAbove ? (Number(args.OffsetYAbove) || 0) : 0);
+            $gameSystem._wsqDpBubbleArrowOffsetYAbove = yAbove;
+            $gameSystem._wsqDpBubbleArrowOffsetYBelow = yBelow;
+        } else {
+            // 仅传 OffsetY → 头顶/脚下同用
+            const y = Number(args.OffsetY || 0) || 0;
+            $gameSystem._wsqDpBubbleArrowOffsetYAbove = y;
+            $gameSystem._wsqDpBubbleArrowOffsetYBelow = y;
+        }
     }
 });
 
@@ -1074,6 +1197,20 @@ Window_Message.prototype.synchronizeNameBox = function () {
 // 之后，叠加本补丁的“气泡专属偏移”。该偏移仅作用于气泡窗口，不影响普通对话窗口。
 // 注意：原方法在 opening/closing 阶段会提前返回、不重算位置，故此处必须沿用相同的
 // 守卫，否则会在开/关阶段的每一帧重复叠加偏移导致累积漂移。
+// Y 偏移的语义为“与对话框目标的额外距离”（间隙增量），与气泡在头上/脚下无关：
+//   - 气泡在目标【上方】(按原生公式未翻转)：头顶距离 → this.y -= off.yAbove
+//   - 气泡在目标【下方】(原生公式 <0 已翻转)：脚下距离 → this.y += off.yBelow
+// 这样无论朝向，正 Y 都表示“离角色更远”，负 Y 表示“更靠近”，且头顶/脚下可分别微调。
+//
+// 【v1.09 修复】朝向判定不再用“原生计算后的 this.y 与 sprite.y 比较”，而是直接按
+// 原生定位公式（sprite.y - sprite.height - this.height - spacing < 0 即翻转到下方）
+// 判定。旧写法受通用消息偏移 messageOffset.y 污染：当全局偏移为负（气泡整体上移）时，
+// 下方模式的原生结果 this.y = sprite.y + spacing + msgOff.y 会小于 sprite.y，
+// 被误判为“气泡在上方”，导致 Y 偏移方向反转——“气泡在目标下方时，负偏移（想更近）
+// 反而把气泡越推越远，且偏移绝对值越大越远”。上方模式因负偏移只会让 this.y 更小，
+// 判断不受影响，故呈现“头上更近、脚下越来越远”的怪异行为。
+// 【v1.11】Y 偏移拆分为头顶/脚下两个参数（BubbleOffsetYAbove / BubbleOffsetYBelow），
+// 分别控制气泡在目标上方与下方时的“到目标距离”。
 WSQ.DP.Window_Message_updateBubblePosition = Window_Message.prototype.updateBubblePosition;
 Window_Message.prototype.updateBubblePosition = function () {
     if (WSQ.DP.Window_Message_updateBubblePosition) {
@@ -1081,8 +1218,20 @@ Window_Message.prototype.updateBubblePosition = function () {
     }
     if (this.visible && this.isBubbleStyle() && !this.isOpening() && !this.isClosing()) {
         const off = WSQ.DP.bubbleOffset();
+        const sprite = $gameMessage.bubbleSprite();
+        // X 偏移：水平方向无上下歧义，直接叠加。
         this.x += off.x;
-        this.y += off.y;
+        // Y 偏移：按朝向取对应的“到目标距离”（头顶/脚下可分别设置）。
+        if (sprite) {
+            // 朝向判定与 GF 原生翻转条件完全一致（原生公式 < 0 即翻转到下方），
+            // 不依赖叠加偏移后的 this.y，杜绝 messageOffset 等外部偏移的污染。
+            const spacing = this._isBattleSprite ? 48 : 24;
+            const yAbove = sprite.y - sprite.height - this.height - spacing;
+            const bubbleBelow = yAbove < 0;
+            this.y += bubbleBelow ? off.yBelow : -off.yAbove;
+        } else {
+            this.y += off.yAbove;
+        }
     }
 };
 
@@ -1092,7 +1241,23 @@ Window_Message.prototype.updateBubblePosition = function () {
 // 一次、跨多条对话复用（仅 terminateMessage 时 hide，不重建），一旦某条对话的气泡
 // 出现在目标下方（scale.y 被置 -1），之后即便气泡又回到目标上方，箭头仍保持翻转状态，
 // 视觉上“方向不稳定 / 切回时箭头方向错乱”。
-// 此处覆写并显式按当前 this.y 与角色 y 的关系设置 scale.y，确保每条消息方向正确。
+// 此处覆写并显式按当前气泡朝向设置 scale.y，确保每条消息方向正确。
+// 【v1.09】朝向判定与 updateBubblePosition 统一为原生定位公式（<0 即下方），
+// 不再用叠加偏移后的 this.y 与 sprite.y 比较——否则气泡专属偏移/全局消息偏移
+// 把气泡推过角色脚底时，箭头方向会与实际位置不一致。
+// 【v1.10】箭头【位置】同样显式纠正：GF 原生的箭头 y 也依赖“叠加偏移后的
+// this.y > sprite.y”判断——当负气泡偏移把下方模式的气泡推过角色脚底时，
+// 原生会把箭头放到气泡底部（y = this._height）而本覆写又强制 scale.y = -1，
+// 结果“箭头在气泡底部却朝上指”，离目标很远、视觉错乱。现统一按原生定位公式
+// 显式设置箭头贴靠侧：气泡在目标【下方】→ 箭头贴气泡【顶部】（y = 0）朝上指，
+// 离目标更近；气泡在目标【上方】→ 箭头贴气泡【底部】（y = this._height）朝下指。
+// 【v1.12】新增气泡箭头专属偏移：箭头同样支持“到目标距离”语义并分头顶/脚下两个
+// 参数（BubbleArrowOffsetYAbove / BubbleArrowOffsetYBelow），与 GF 皮肤样式的箭头
+// 平移（bubble_arrow 的 x/y）叠加。方向推导：
+//   - 气泡在目标【下方】(箭头贴气泡顶部、朝上指)：正=箭头离目标更远（缩回气泡内，y 增大），
+//     负=更近（伸出贴目标，y 减小）→ y = 0 + off.yBelow
+//   - 气泡在目标【上方】(箭头贴气泡底部、朝下指)：正=箭头离目标更远（缩回气泡内，y 减小），
+//     负=更近（伸出贴目标，y 增大）→ y = this._height - off.yAbove
 WSQ.DP.Window_Message_refreshBubbleArrow = Window_Message.prototype.refreshBubbleArrow;
 Window_Message.prototype.refreshBubbleArrow = function () {
     if (WSQ.DP.Window_Message_refreshBubbleArrow) {
@@ -1100,10 +1265,17 @@ Window_Message.prototype.refreshBubbleArrow = function () {
     }
     const sprite = $gameMessage.bubbleSprite();
     if (!sprite || !this._bubbleArrow) return;
-    if (this.y > sprite.y) {
-        this._bubbleArrow.scale.y = -1; // 气泡在角色下方 → 箭头朝上
+    const spacing = this._isBattleSprite ? 48 : 24;
+    const yAbove = sprite.y - sprite.height - this.height - spacing;
+    const off = WSQ.DP.bubbleArrowOffset();
+    if (yAbove < 0) {
+        // 气泡在角色下方：箭头贴气泡顶部，朝上指向目标（离目标最近一侧）
+        this._bubbleArrow.y = 0 + off.yBelow;
+        this._bubbleArrow.scale.y = -1;
     } else {
-        this._bubbleArrow.scale.y = 1;  // 气泡在角色上方 → 箭头朝下（显式复位，关键修复）
+        // 气泡在角色上方：箭头贴气泡底部，朝下指向目标
+        this._bubbleArrow.y = this._height - off.yAbove;
+        this._bubbleArrow.scale.y = 1;
     }
 };
 
@@ -1201,6 +1373,7 @@ Game_Message.prototype.clear = function () {
     }
     WSQ.DP._forcedBubbleTarget = undefined;
     WSQ.DP._forcedBubbleOffset = undefined;
+    WSQ.DP._forcedBubbleArrowOffset = undefined;
 };
 
 //=============================================================================
