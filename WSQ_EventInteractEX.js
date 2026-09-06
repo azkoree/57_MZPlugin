@@ -7,13 +7,13 @@ Imported.WSQ_EventInteractEX = true;
 
 var WSQ = WSQ || {};
 WSQ.EIX = WSQ.EIX || {};
-WSQ.EIX.version = 1.25;
+WSQ.EIX.version = 1.32;
 WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 /*:
  * @target MZ
  * @author WSQ
- * @plugindesc [v1.25]        事件 - 事件互动扩展（EAGLE-RGSS3 移植，支持鼠标操作）
+ * @plugindesc [v1.32]        事件 - 事件互动扩展（EAGLE-RGSS3 移植，支持鼠标操作）
  *
  * @help
  * ============================================================================
@@ -39,7 +39,25 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * 前置需求
  * ============================================================================
  * - 无（独立插件，可在任意加载位置使用）
- * - 可选：HalfMove（半格移动插件；启用时本插件自动采用整格判定，请将其置于本插件之前）
+ * - 可选：HalfMove（半格移动插件；启用时本插件自动采用整格判定并兼容半格坐标，
+ *    <HMTriggerExpansion:ON>/<HMExpansionArea:0.5,...> 半格触发区域、<HMInitialHalfX:+>
+ *    半格事件位置均可正常弹出互动列表，请将 HalfMove 置于本插件之前）
+ * - v1.28：触发类型 0（确定键）事件的兜底——若玩家因半格停靠位置导致列表未提前弹出，
+ *   按确定键时也会先强制打开互动列表，绝不会绕过列表整页执行事件。
+ * - v1.29：触发范围跟随 HalfMove 扩展区域——事件用 <HMExpansionArea> 备注（或全局
+ *   TriggerExpansion 参数）扩大触发区域 / <HMWidth> 扩大判定宽度后，玩家即使被碰撞
+ *   挡在区域边缘（距事件格超 range 也在所不惜），只要半格身位进入扩展区域即可弹出列表。
+ * - v1.30：修复「列表显示位置」参数失效——原实现用 eventSprites[i].character（RMMZ
+ *   Sprite_Character 无此属性，实际为 _character / checkCharacter）查找事件精灵，恒不
+ *   命中，三个位置分支永不执行，列表一律落在事件格中心右下方；现改为按事件格几何
+ *   直接定位（0 = 事件格下方、1 = 事件格上方、2 = 事件格右侧），并移除对 MZ 中不存在
+ *   的 Sprite.ox/oy 属性的依赖（MZ Sprite 以 anchor 定位，ox/oy 赋值无效）。
+ * - v1.31：新增「列表整体 X/Y 偏移」参数（listOffsetX / listOffsetY）——在「列表显示
+ *   位置」（listPos）确定的基础上整体平移列表，正值向右/向下、负值向左/向上（像素）；
+ *   偏移在屏幕边缘回拉之后叠加，1:1 生效。
+ * - v1.32：新增「预设互动列表」参数（presets）与【预设: xxx】注释引用——预设可在
+ *   参数中集中维护，事件首条注释只需写一行引用即可展开为一串互动（详见「备注」第 2 条），
+ *   避免注释过长影响与其他插件共用第一行。
  *
  * ============================================================================
  * 备注（notetag）
@@ -48,14 +66,25 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *      注释： 【交谈】【商店】【贿赂】
  *    可重复填写多个【xx】；未填写【xx】的事件页按默认方式执行全部指令。
  *
- * 2. 互动内容（写在当前事件页中，用「标签」指令界定指令块）：
+ * 2. 预设互动列表（可选，避免首条注释过长，v1.32 起）：
+ *      在参数「预设互动列表」（presets）中集中配置多条预设，每条含
+ *      「标识符」与「互动名列表」（互动名之间用空格 / 逗号 / 竖线分隔，
+ *      每个互动名仍可追加 if{条件}）。事件注释里即可只写一行引用：
+ *      注释： 【预设: 商店】     —— 按标识符引用（区分大小写）
+ *      注释： 【预设: 2】        —— 按编号引用（1 起，指参数中第 2 条预设）
+ *    引用会就地展开为一串【xx】，展开后与手写完全等价（图标映射 /
+ *    显示条件 / if{} 照常生效）；标识符与编号均未命中时，该项会按普通
+ *    互动名原样显示并在控制台输出警告，便于排查笔误。引用处请勿再追加
+ *    if{条件}（请写在预设项内或「互动图标映射」的显示条件列）。
+ *
+ * 3. 互动内容（写在当前事件页中，用「标签」指令界定指令块）：
  *      标签：交谈
  *      显示文字：测试语句1
  *      标签：InteractEnd
  *    确定执行该互动后，会跳转到同名「标签」处开始执行，遇到「标签：InteractEnd」结束。
  *    未编写对应标签块时，执行该互动不会运行任何指令。
  *
- * 3. 互动出现条件（在名称后追加 if{条件}）：
+ * 4. 互动出现条件（在名称后追加 if{条件}）：
  *      注释： 【偷窃 if{s[1]}】【交谈】
  *    当 eval(条件) 返回 true 时才显示该互动。条件内可直接使用：
  *      s  —— 开关组（s[1] 表示 1 号开关）
@@ -64,8 +93,12 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *      es —— 地图事件组（$gameMap.events）
  *      gp —— 玩家（$gamePlayer）
  *    示例：【偷窃 if{s[1]}】→ 1 号开关开启时，才显示「偷窃」。
+ *    也可在「互动图标映射」的「显示条件」列统一配置某个互动名的条件（留空 = 始终显示）：
+ *      名称 = 送礼，显示条件 = $gameParty.hasActor(2)
+ *    事件注释只需写【送礼】，插件会自动套用该条件；事件内 if{...} 与映射条件
+ *    同时存在时，两者都满足才显示。
  *
- * 4. 触发范围（在首条注释中追加 range{数值}，v1.20 起）：
+ * 5. 触发范围（在首条注释中追加 range{数值}，v1.20 起）：
  *      注释： 【交谈】【商店】 range{3}
  *    该事件页的互动菜单触发范围单独设为 3 格，覆盖「互动触发范围」参数。
  *    未填写时使用参数默认值（默认 2 格）。
@@ -75,7 +108,7 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *    注意：面向触发（「忽略朝向限制」关闭时）只沿玩家面朝方向逐格判定，
  *    斜角方向的事件必须开启「忽略朝向限制」才会自动弹出列表。
  *
- * 5. 结束标签名可在「互动结束标签名」参数中修改（默认 InteractEnd）。
+ * 6. 结束标签名可在「互动结束标签名」参数中修改（默认 InteractEnd）。
  *    建议使用专属名称，避免与事件中其他用途的「END」标签冲突。
  *
  * ============================================================================
@@ -115,9 +148,15 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *
  * @param iconSet
  * @text 互动图标映射
- * @desc 互动名称对应的系统图标编号（IconSet 图标集中的索引）。\n与事件注释【名称】完全一致的名称才会命中。
+ * @desc 互动名称对应的系统图标编号（IconSet 图标集中的索引）。\n与事件注释【名称】完全一致的名称才会命中。\n「显示条件」列可为该互动名配置统一显示条件（JS 表达式，留空 = 始终显示）。
  * @type struct<InteractIcon>[]
- * @default [{"Name":"交谈","Icon":"4"},{"Name":"偷窃","Icon":"482"},{"Name":"送礼","Icon":"259"},{"Name":"贿赂","Icon":"361"},{"Name":"推","Icon":"11"},{"Name":"拉","Icon":"11"}]
+ * @default [{"Name":"交谈","Icon":"4","Cond":""},{"Name":"偷窃","Icon":"482","Cond":""},{"Name":"送礼","Icon":"259","Cond":""},{"Name":"贿赂","Icon":"361","Cond":""},{"Name":"推","Icon":"11","Cond":""},{"Name":"拉","Icon":"11","Cond":""}]
+ *
+ * @param presets
+ * @text 预设互动列表
+ * @desc 预设的互动名列表集合，供事件注释【预设: 标识符或编号】引用（编号从 1 起）。\n每条含「标识符」与「互动名列表」：互动名之间用空格 / 逗号 / 竖线分隔，每项仍可追加 if{条件}。\n展开后与手写【xx】完全等价，图标映射 / 显示条件照常生效。
+ * @type struct<InteractPreset>[]
+ * @default [{"name":"商店","items":"购买 出售 讲价"},{"name":"巡逻","items":"交谈 送礼"}]
  *
  * @param defaultIcon
  * @text 默认图标编号
@@ -151,6 +190,18 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 0 - 事件下方；1 - 事件上方；2 - 事件右侧。
  * @type number
  * @default 2
+ *
+ * @param listOffsetX
+ * @text 列表整体 X 偏移
+ * @desc 在列表显示位置的基础上，整体横向平移列表（像素，正右负左）。
+ * @type number
+ * @default 0
+ *
+ * @param listOffsetY
+ * @text 列表整体 Y 偏移
+ * @desc 在列表显示位置的基础上，整体纵向平移列表（像素，正下负上）。
+ * @type number
+ * @default 0
  *
  * @param fontSize
  * @text 互动文字字号
@@ -326,6 +377,26 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 该互动的文字颜色（CSS 格式，如 #ff6666；留空 = 默认选中白/未选中灰）。
  * @type string
  * @default 
+ *
+ * @param Cond
+ * @text 显示条件
+ * @desc 该互动的显示条件（JS 表达式，留空 = 始终显示）。\n与事件注释内 if{...} 同时存在时，两者都满足才显示。\n可用 s/v/e/es/gp 及引擎全局对象，如 $gameParty.hasActor(2)。
+ * @type string
+ * @default 
+ */
+
+/*~struct~InteractPreset:
+ * @param name
+ * @text 标识符
+ * @desc 事件注释中引用的标识符，如【预设: 商店】。留空则只能用编号引用。
+ * @type string
+ * @default 
+ *
+ * @param items
+ * @text 互动名列表
+ * @desc 预设包含的互动名，用空格 / 逗号 / 竖线分隔，每项可追加 if{条件}，如：购买 出售 讲价。
+ * @type string
+ * @default 
  */
 
 //=============================================================================
@@ -366,12 +437,31 @@ try {
     console.warn("WSQ_EventInteractEX: 互动图标映射参数解析失败，已回退为空映射。");
 }
 
+// 预设互动列表（struct<InteractPreset>[]，双层编码解析，方式同 iconSet）
+WSQ.EIX.presets = [];
+try {
+    var rawPresets = WSQ.EIX.str("presets", "[]");
+    var arrPresets = typeof rawPresets === "string" ? JSON.parse(rawPresets) : rawPresets;
+    WSQ.EIX.presets = (arrPresets || []).map(function (s) {
+        return typeof s === "string" ? JSON.parse(s) : s;
+    });
+} catch (e) {
+    WSQ.EIX.presets = [];
+    console.warn("WSQ_EventInteractEX: 预设互动列表参数解析失败，已回退为空列表。");
+}
+
 //=============================================================================
 // 核心逻辑
 //=============================================================================
 
 WSQ.EIX._info = null;
 WSQ.EIX._sprite = null;   // 列表精灵引用（Spriteset_Map.createCharacters 时注入）
+
+// 调试日志（默认关闭；控制台执行 WSQ.EIX.debug = true 开启，用于排查触发链路）
+WSQ.EIX.debug = false;
+WSQ.EIX.log = function (msg) {
+    if (WSQ.EIX.debug) console.log("[WSQ_EIX] " + msg);
+};
 
 // 清除当前互动信息
 WSQ.EIX.clear = function () {
@@ -410,9 +500,13 @@ WSQ.EIX.scan = function () {
     if (e) {
         var syms = WSQ.EIX.extractSyms(e);
         WSQ.EIX.reset(e, syms);
+        WSQ.EIX.log("scan 命中事件#" + e._id + " 于 (" + e._x + "," + e._y + ") 玩家 (" +
+            $gamePlayer.x + "," + $gamePlayer.y + ")");
         WSQ.EIX.nextSym();
     } else if (!WSQ.EIX.isClickMenuAlive()) {
         WSQ.EIX.clear();
+        WSQ.EIX.log("scan 未命中：玩家 (" + $gamePlayer.x + "," + $gamePlayer.y + ") 面向 " +
+            $gamePlayer.direction() + " halfMove=" + WSQ.EIX.isHalfMoveMode());
     }
 };
 
@@ -457,7 +551,10 @@ WSQ.EIX.onWheel = function (delta) {
 // 执行当前互动；成功处理返回 true（阻止引擎默认触发）
 WSQ.EIX.executeCurrent = function () {
     var info = WSQ.EIX._info;
-    if (!info || !info.event) return false;
+    if (!info || !info.event) {
+        WSQ.EIX.log("executeCurrent：无活动列表");
+        return false;
+    }
     var e = info.event;
     if (e._erased) {
         WSQ.EIX.clear();
@@ -482,9 +579,100 @@ WSQ.EIX.trigger = function (event, type) {
     $gameMap.setupStartingEvent();
 };
 
+// 确定键兜底：scan 未命中但「脚下 / 面前 / 周围触发范围内」存在带互动标签的事件时，
+// 强制打开列表并返回 true（吞掉确定键，防止绕过列表整页执行）。
+// HalfMove 半格触发区域下玩家停靠位置可能为半格（如 (6.5, 5)），scan 的
+// getEventHere/There/Nearby 若因坐标/距离失配未命中，这里在按确定键时兜底补开。
+WSQ.EIX.ensureMenuOpen = function () {
+    var info = WSQ.EIX._info;
+    if (info && info.event) return false;   // 列表已开，无需兜底
+    if ($gameMap.isEventRunning()) return false;
+    var triggers = [0, 1, 2];
+    var e = WSQ.EIX.getEventHere(triggers);
+    if (!e) e = WSQ.EIX.getEventNearby(triggers);
+    if (!e) {
+        // 再沿面朝方向查面前格（整格/半格由 eventsAt ±0.5 容错）
+        var d = $gamePlayer.direction();
+        var x2 = WSQ.EIX.roundX($gamePlayer.x, d);
+        var y2 = WSQ.EIX.roundY($gamePlayer.y, d);
+        e = WSQ.EIX.getTaggedEvent(x2, y2, triggers, null);
+    }
+    if (e) {
+        var syms = WSQ.EIX.extractSyms(e);
+        if (syms.length > 0) {
+            WSQ.EIX.reset(e, syms);
+            WSQ.EIX.log("ensureMenuOpen 兜底开列表 → 事件#" + e._id);
+            return true;
+        }
+    }
+    WSQ.EIX.log("ensureMenuOpen 未找到带标签事件");
+    return false;
+};
+
 //=============================================================================
 // 互动提取
 //=============================================================================
+
+// 按标识符或编号（1 起）查找预设；未命中返回 null
+WSQ.EIX.findPreset = function (key) {
+    if (!key || !WSQ.EIX.presets) return null;
+    var list = WSQ.EIX.presets;
+    if (/^\d+$/.test(key)) {
+        var index = Number(key) - 1;
+        return index >= 0 && index < list.length ? list[index] : null;
+    }
+    for (var i = 0; i < list.length; i++) {
+        if (String(list[i].name).trim() === key) return list[i];
+    }
+    return null;
+};
+
+// 拆分预设的互动名列表（空格 / 逗号 / 竖线等分隔）
+// 先把 if{...} 整体保护为令牌（其内容可能含空格），拆分后再把
+// 孤立的 if 令牌并回前一个互动名作后缀，使「名称 if{条件}」保持为同一项
+WSQ.EIX.splitPresetItems = function (s) {
+    s = String(s);
+    var guards = [];
+    s = s.replace(/if\s*\{[^{}]*\}/gi, function (m) {
+        guards.push(m);
+        return "\u0001" + (guards.length - 1) + "\u0002";
+    });
+    var parts = s.split(/[\s,，、|;；]+/).filter(function (x) { return x; });
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+        if (out.length > 0 && /^\u0001\d+\u0002$/.test(parts[i])) {
+            out[out.length - 1] += " " + parts[i];
+            continue;
+        }
+        out.push(parts[i]);
+    }
+    return out.map(function (p) {
+        return p.replace(/\u0001(\d+)\u0002/g, function (m, n) {
+            return guards[Number(n)];
+        });
+    });
+};
+
+// 把注释文本中的【预设: xxx】引用就地展开为普通互动 tag 串（xxx 可为标识符或编号）
+// 未命中的引用保留原文（连同后续 if{} 交由常规解析），并输出警告便于排查
+WSQ.EIX.expandPresets = function (text) {
+    var open = WSQ.EIX.str("tagOpen", "【");
+    var close = WSQ.EIX.str("tagClose", "】");
+    var re = new RegExp(WSQ.EIX.escapeRegExp(open) + "\\s*预设\\s*[:：]\\s*([\\s\\S]*?)\\s*" + WSQ.EIX.escapeRegExp(close), "gi");
+    return text.replace(re, function (match, key) {
+        var preset = WSQ.EIX.findPreset(String(key).trim());
+        if (!preset) {
+            console.warn("WSQ_EventInteractEX: 未找到预设「" + key + "」，已按普通互动项保留。");
+            return match;
+        }
+        var items = WSQ.EIX.splitPresetItems(preset.items);
+        var parts = [];
+        for (var i = 0; i < items.length; i++) {
+            parts.push(open + items[i] + close);
+        }
+        return parts.join("");
+    });
+};
 
 // 从事件页首条注释中提取【xx】互动数组（含 if{条件} 过滤）
 WSQ.EIX.extractSyms = function (event) {
@@ -496,6 +684,8 @@ WSQ.EIX.extractSyms = function (event) {
     }
     if (!comment) return [];
     var text = String(comment.parameters[0] || "");
+    // v1.32：先把注释中的【预设: xxx】引用展开为普通互动 tag 串
+    text = WSQ.EIX.expandPresets(text);
     var open = WSQ.EIX.escapeRegExp(WSQ.EIX.str("tagOpen", "【"));
     var close = WSQ.EIX.escapeRegExp(WSQ.EIX.str("tagClose", "】"));
     var re = new RegExp(open + "([\\s\\S]*?)" + close, "g");
@@ -516,7 +706,16 @@ WSQ.EIX.extractSyms = function (event) {
             }
         }
         t = t.trim();
-        if (t) syms.push(t);
+        if (!t) continue;
+        var condMap = WSQ.EIX.itemCond(t);
+        if (condMap) {
+            try {
+                if (WSQ.EIX.evalCond(condMap, event) === false) continue;
+            } catch (err) {
+                continue;
+            }
+        }
+        syms.push(t);
     }
     return syms;
 };
@@ -576,28 +775,121 @@ WSQ.EIX.itemColor = function (t) {
     return null;
 };
 
+// 获取指定互动的映射显示条件（JS 表达式；未配置或空白时返回 null）
+WSQ.EIX.itemCond = function (t) {
+    for (var i = 0; i < WSQ.EIX.iconSet.length; i++) {
+        var item = WSQ.EIX.iconSet[i];
+        if (item.Name === t && item.Cond) {
+            var cond = String(item.Cond).trim();
+            if (cond) return cond;
+        }
+    }
+    return null;
+};
+
 //=============================================================================
 // 事件检索（含 HalfMove 半格兼容：整格判定）
 //=============================================================================
 
-// 玩家脚下（同格）带互动标签的事件（任意触发类型、任意优先级）
+// HalfMove 是否生效（插件加载后 Game_Map.tileUnit 恒为 0.5）
+WSQ.EIX.isHalfMoveMode = function () {
+    return typeof Game_Map !== "undefined" && Game_Map.tileUnit === 0.5;
+};
+
+// 事件检索：HalfMove 生效时先按「宽度感知精确匹配」（HalfMove 重写 pos，
+// <HMWidth>/<HMHeight> 使事件覆盖多格），再按 ±0.5 命中（兼容半格事件与半格
+// 查询点，例如 <HMInitialHalfX:+> 的 (5.5, y) 事件、停在 (4.5, y) 的玩家），
+// 否则回退引擎精确整格匹配 eventsXy（行为与默认一致）
+WSQ.EIX.eventsAt = function (x, y) {
+    if (!WSQ.EIX.isHalfMoveMode()) return $gameMap.eventsXy(x, y);
+    var result = [];
+    var events = $gameMap.events();
+    for (var i = 0; i < events.length; i++) {
+        var event = events[i];
+        if (event.pos && event.pos(x, y)) {
+            result.push(event);
+            continue;
+        }
+        if (Math.abs(event._x - x) <= 0.5 && Math.abs(event._y - y) <= 0.5) {
+            result.push(event);
+        }
+    }
+    return result;
+};
+
+// 玩家是否「够得着」事件的 HalfMove 扩展触发区域（<HMExpansionArea> 备注或
+// 全局 TriggerExpansion 参数）：
+//   ① 玩家坐标点在扩展区域内；
+//   ② 玩家半格身位（四周 ±0.5 邻接点）进入区域——玩家被扩展区域碰撞挡在
+//      边缘（如右侧扩 1 格时玩家停区域外半格）时也能正常触发；
+//   ③ <HMWidth>/<HMHeight> 占据格扩展：玩家半格身位与事件实际占据范围相邻
+//      （被宽度碰撞挡在边缘时）也触发。
+// HalfMove 未加载 / 未开启扩展触发时返回 false，回退到本插件的 range 距离判定。
+WSQ.EIX.inExpansionArea = function (event, px, py) {
+    if (!WSQ.EIX.isHalfMoveMode()) return false;
+    if (!event || typeof event.isInExpansionArea !== "function") return false;
+    if (!event._triggerExpansion) return false;
+    if (event.isInExpansionArea(px, py)) return true;
+    if (event.isInExpansionArea(px + 0.5, py) ||
+        event.isInExpansionArea(px - 0.5, py) ||
+        event.isInExpansionArea(px, py + 0.5) ||
+        event.isInExpansionArea(px, py - 0.5)) {
+        return true;
+    }
+    if (event._eventWidth || event._eventHeight) {
+        var x0 = event._x - 0.5;
+        var x1 = event._x + (event._eventWidth || 1) - 1 + 0.5;
+        var y0 = event._y - 0.5;
+        var y1 = event._y + (event._eventHeight || 1) - 1 + 0.5;
+        if (px >= x0 && px <= x1 && py >= y0 && py <= y1) return true;
+    }
+    return false;
+};
+
+// 玩家判定坐标：HalfMove 下保留原始坐标（可能 .5，交由 eventsAt 的 ±0.5
+// 命中容错），非 HalfMove 时取整（与引擎默认行为一致）
+WSQ.EIX.playerX = function () {
+    return WSQ.EIX.isHalfMoveMode() ? $gamePlayer.x : Math.round($gamePlayer.x);
+};
+
+WSQ.EIX.playerY = function () {
+    return WSQ.EIX.isHalfMoveMode() ? $gamePlayer.y : Math.round($gamePlayer.y);
+};
+
+// 玩家脚下（同格/半格邻接）带互动标签的事件（任意触发类型、任意优先级）
 WSQ.EIX.getEventHere = function (triggers) {
-    var px = Math.round($gamePlayer.x);
-    var py = Math.round($gamePlayer.y);
-    return WSQ.EIX.getTaggedEvent(px, py, triggers, null);
+    return WSQ.EIX.getTaggedEvent(WSQ.EIX.playerX(), WSQ.EIX.playerY(), triggers, null);
 };
 
 // 玩家面前可互动的事件（按触发范围逐格扫描；柜台格无事件自然跳过，自动兼容柜台穿透）
+// HalfMove 模式下从玩家原始坐标以半格步进扫描，范围判定用真实距离（覆盖玩家停在半格位置）
 WSQ.EIX.getEventThere = function (triggers) {
-    var px = Math.round($gamePlayer.x);
-    var py = Math.round($gamePlayer.y);
+    var half = WSQ.EIX.isHalfMoveMode();
+    var px = half ? $gamePlayer.x : Math.round($gamePlayer.x);
+    var py = half ? $gamePlayer.y : Math.round($gamePlayer.y);
     var d = $gamePlayer.direction();
     var vec = WSQ.EIX.dirVector(d);
     var scanMax = Math.max(WSQ.EIX.num("triggerRange", 2), 9);
-    for (var i = 1; i <= scanMax; i++) {
-        var e = WSQ.EIX.getTaggedEvent(px + vec[0] * i, py + vec[1] * i, triggers, true);
-        if (e && i <= WSQ.EIX.rangeOf(e)) {
-            return e;
+    if (!half) {
+        for (var i = 1; i <= scanMax; i++) {
+            var e = WSQ.EIX.getTaggedEvent(px + vec[0] * i, py + vec[1] * i, triggers, true);
+            if (e && (i <= WSQ.EIX.rangeOf(e) ||
+                      WSQ.EIX.inExpansionArea(e, $gamePlayer.x, $gamePlayer.y))) {
+                return e;
+            }
+        }
+    } else {
+        // 半格步进：j/2 步长从 0.5 格起扫，命中后按真实距离或 HalfMove 扩展区域判定
+        var maxJ = scanMax * 2;
+        for (var j = 1; j <= maxJ; j++) {
+            var e2 = WSQ.EIX.getTaggedEvent(px + vec[0] * j / 2, py + vec[1] * j / 2, triggers, true);
+            if (e2) {
+                var dist = WSQ.EIX.distance(e2._x, e2._y, $gamePlayer.x, $gamePlayer.y);
+                if (dist <= WSQ.EIX.rangeOf(e2) ||
+                    WSQ.EIX.inExpansionArea(e2, $gamePlayer.x, $gamePlayer.y)) {
+                    return e2;
+                }
+            }
         }
     }
     return null;
@@ -605,23 +897,48 @@ WSQ.EIX.getEventThere = function (triggers) {
 
 // 玩家周围可互动的事件（忽略朝向：按「触发范围形状」由近到远逐层扫描——
 // 方形 = 切比雪夫距离，范围 1 即周围八格含斜角；菱形 = 曼哈顿距离。
-// 取最近的带标签事件）
+// 取最近的带标签事件。HalfMove 模式下以 0.5 格步进扫描，范围判定用真实距离）
 WSQ.EIX.getEventNearby = function (triggers) {
-    var px = Math.round($gamePlayer.x);
-    var py = Math.round($gamePlayer.y);
+    var half = WSQ.EIX.isHalfMoveMode();
+    var px = half ? $gamePlayer.x : Math.round($gamePlayer.x);
+    var py = half ? $gamePlayer.y : Math.round($gamePlayer.y);
     var scanMax = Math.max(WSQ.EIX.num("triggerRange", 2), 9);
     var shape = WSQ.EIX.num("rangeShape", 1);
-    for (var dist = 1; dist <= scanMax; dist++) {
-        for (var dx = -dist; dx <= dist; dx++) {
-            for (var dy = -dist; dy <= dist; dy++) {
-                if (shape === 1) {
-                    if (Math.max(Math.abs(dx), Math.abs(dy)) !== dist) continue;
-                } else {
-                    if (Math.abs(dx) + Math.abs(dy) !== dist) continue;
+    if (!half) {
+        for (var dist = 1; dist <= scanMax; dist++) {
+            for (var dx = -dist; dx <= dist; dx++) {
+                for (var dy = -dist; dy <= dist; dy++) {
+                    if (shape === 1) {
+                        if (Math.max(Math.abs(dx), Math.abs(dy)) !== dist) continue;
+                    } else {
+                        if (Math.abs(dx) + Math.abs(dy) !== dist) continue;
+                    }
+                    var e = WSQ.EIX.getTaggedEvent(px + dx, py + dy, triggers, null);
+                    if (e && (WSQ.EIX.inRange(e._x, e._y, px, py, WSQ.EIX.rangeOf(e)) ||
+                              WSQ.EIX.inExpansionArea(e, px, py))) {
+                        return e;
+                    }
                 }
-                var e = WSQ.EIX.getTaggedEvent(px + dx, py + dy, triggers, null);
-                if (e && WSQ.EIX.inRange(e._x, e._y, px, py, WSQ.EIX.rangeOf(e))) {
-                    return e;
+            }
+        }
+    } else {
+        // 半格步进：d2/2 为实际距离（d2 取整数避免浮点误差），从 0.5 格起扫
+        var maxD2 = scanMax * 2;
+        for (var d2 = 1; d2 <= maxD2; d2++) {
+            var r = d2 / 2;
+            for (var dx2 = -d2; dx2 <= d2; dx2++) {
+                for (var dy2 = -d2; dy2 <= d2; dy2++) {
+                    var hx = dx2 / 2, hy = dy2 / 2;
+                    if (shape === 1) {
+                        if (Math.max(Math.abs(hx), Math.abs(hy)) !== r) continue;
+                    } else {
+                        if (Math.abs(hx) + Math.abs(hy) !== r) continue;
+                    }
+                    var e2 = WSQ.EIX.getTaggedEvent(px + hx, py + hy, triggers, null);
+                    if (e2 && (WSQ.EIX.inRange(e2._x, e2._y, px, py, WSQ.EIX.rangeOf(e2)) ||
+                               WSQ.EIX.inExpansionArea(e2, px, py))) {
+                        return e2;
+                    }
                 }
             }
         }
@@ -654,7 +971,7 @@ WSQ.EIX.inRange = function (ex, ey, px, py, range) {
 
 // 获取指定格上带互动标签的事件（同一格有多个事件时取第一个带标签的；无标签返回 null）
 WSQ.EIX.getTaggedEvent = function (x, y, triggers, normal) {
-    var events = $gameMap.eventsXy(x, y);
+    var events = WSQ.EIX.eventsAt(x, y);
     for (var i = 0; i < events.length; i++) {
         var event = events[i];
         if (event.isTriggerIn(triggers) &&
@@ -679,7 +996,7 @@ WSQ.EIX.roundY = function (y, d) {
 };
 
 WSQ.EIX.getMapEvent = function (x, y, triggers, normal) {
-    var events = $gameMap.eventsXy(x, y);
+    var events = WSQ.EIX.eventsAt(x, y);
     for (var i = 0; i < events.length; i++) {
         var event = events[i];
         if (event.isTriggerIn(triggers) &&
@@ -709,7 +1026,7 @@ WSQ.EIX.update = function (sprite, eventSprites) {
     } else {
         WSQ.EIX.redrawType1(sprite);
     }
-    WSQ.EIX.updatePosition(sprite, eventSprites);
+    WSQ.EIX.updatePosition(sprite);
 };
 
 // 按需重建位图（尺寸变化时才重建）
@@ -829,7 +1146,6 @@ WSQ.EIX.redrawType0 = function (sprite) {
     }
     bitmap.fontSize = symFontSize;
     var x = pad;
-    var ox = 0;
     for (var j = 0; j < syms.length; j++) {
         var t = syms[j];
         var iconIndex = WSQ.EIX.icon(t);
@@ -838,7 +1154,6 @@ WSQ.EIX.redrawType0 = function (sprite) {
         WSQ.EIX.drawIcon(bitmap, iconIndex, x + dx, y + dy, j === WSQ.EIX._info.i);
         x += iconWh + symOffset;
         if (j === WSQ.EIX._info.i) {
-            ox = x - iconWh + (iconWh + ws[j]) / 2;
             x -= symOffset;
             bitmap.textColor = WSQ.EIX.itemColor(t) || "#ffffff";
             bitmap.drawText(t, x, y, ws[j], iconWh, 0);
@@ -853,8 +1168,6 @@ WSQ.EIX.redrawType0 = function (sprite) {
         bitmap.fontSize = WSQ.EIX.num("helpFontSize", 12);
         bitmap.drawText(WSQ.EIX.str("helpText", "↑↓ SHIFT"), WSQ.EIX.num("helpOffsetX", 0), h - WSQ.EIX.num("helpFontSize", 12) - 2 + WSQ.EIX.num("helpOffsetY", 0), w, WSQ.EIX.num("helpFontSize", 12) + 2, 2);
     }
-    sprite.ox = ox;
-    sprite.oy = 0;
 };
 
 // 纵向排列
@@ -885,7 +1198,6 @@ WSQ.EIX.redrawType1 = function (sprite) {
     bitmap.outlineWidth = 3;
     bitmap.textColor = "#ffffff";
     var y = pad;
-    var oy = 0;
     var hintH = flagDrawHint ? WSQ.EIX.num("helpFontSize", 12) + 4 : 0;
     if (WSQ.EIX.num("bgStyle", 0) === 1) {
         WSQ.EIX.drawWindowSkin(bitmap, WSQ.EIX.skinBitmap(), w, h);
@@ -900,7 +1212,6 @@ WSQ.EIX.redrawType1 = function (sprite) {
         var iconIndex = WSQ.EIX.icon(syms[j]);
         if (j === WSQ.EIX._info.i) {
             bitmap.textColor = WSQ.EIX.itemColor(syms[j]) || "#ffffff";
-            oy = y;
         } else {
             bitmap.textColor = WSQ.EIX.itemColor(syms[j]) || "#969696";
         }
@@ -914,39 +1225,50 @@ WSQ.EIX.redrawType1 = function (sprite) {
         bitmap.textColor = "#ffffff";
         bitmap.drawText(WSQ.EIX.str("helpText", "↑↓ SHIFT"), WSQ.EIX.num("helpOffsetX", 0), h - WSQ.EIX.num("helpFontSize", 12) - 2 + WSQ.EIX.num("helpOffsetY", 0), w, WSQ.EIX.num("helpFontSize", 12) + 2, 1);
     }
-    sprite.ox = 0;
-    sprite.oy = oy;
 };
 
-// 更新列表位置（跟随事件精灵）
-WSQ.EIX.updatePosition = function (sprite, eventSprites) {
+// 更新列表位置（v1.30 重写：按事件格几何直接定位，不再依赖事件精灵查找）
+// RMMZ 坐标语义：event.screenX() = 事件格水平中心像素；
+//                 event.screenY() = 事件格底边像素（不含跳跃/位移时）。
+// 列表精灵 anchor 恒为 0，位图左上角即 sprite.x/sprite.y。
+WSQ.EIX.updatePosition = function (sprite) {
     var event = WSQ.EIX._info.event;
-    sprite.x = event.screenX();
-    sprite.y = event.screenY();
-    var spriteE = null;
-    for (var i = 0; i < eventSprites.length; i++) {
-        if (eventSprites[i].character === event) { spriteE = eventSprites[i]; break; }
+    var bw = sprite.bitmap ? sprite.bitmap.width : 0;
+    var bh = sprite.bitmap ? sprite.bitmap.height : 0;
+    var cx = event.screenX();          // 事件格水平中心
+    var bottom = event.screenY();      // 事件格底边
+    var tw = $gameMap.tileWidth();
+    var th = $gameMap.tileHeight();
+    var gap = 3;                       // 列表与事件格之间的间距
+    var x = 0, y = 0;
+    switch (WSQ.EIX.num("listPos", 2)) {
+        case 0:                        // 事件下方：顶贴格底边，水平居中
+            x = cx - bw / 2;
+            y = bottom + gap;
+            break;
+        case 1:                        // 事件上方：底贴格顶边，水平居中
+            x = cx - bw / 2;
+            y = bottom - th - bh - gap;
+            break;
+        case 2:                        // 事件右侧：垂直居中对齐事件格
+            x = cx + tw / 2 + gap;
+            y = bottom - th / 2 - bh / 2;
+            break;
     }
-    if (spriteE) {
-        switch (WSQ.EIX.num("listPos", 2)) {
-            case 0: // 事件下方
-                break;
-            case 1: // 事件上方
-                sprite.y = event.screenY() - spriteE.height - sprite.height;
-                break;
-            case 2: // 事件右侧
-                sprite.ox = 0;
-                sprite.x = event.screenX() + spriteE.width / 2 + 2;
-                sprite.y = event.screenY() - spriteE.height;
-                break;
-        }
+    // 超出可视区域时回拉（不遮挡原则：列表不全屏时尽量贴近事件）
+    if (x < 0) {
+        x = 0;
+    } else if (x + bw > Graphics.width) {
+        x = Math.max(0, Graphics.width - bw);
     }
-    if (sprite.x + sprite.width > Graphics.width) {
-        sprite.x = Graphics.width - sprite.width;
+    if (y < 0) {
+        y = 0;
+    } else if (y + bh > Graphics.height) {
+        y = Math.max(0, Graphics.height - bh);
     }
-    if (sprite.y + sprite.height > Graphics.height) {
-        sprite.y = Graphics.height - sprite.height;
-    }
+    // 整体偏移（v1.31：在边缘回拉之后再叠加，偏移量 1:1 生效）
+    sprite.x = x + WSQ.EIX.num("listOffsetX", 0);
+    sprite.y = y + WSQ.EIX.num("listOffsetY", 0);
 };
 
 //=============================================================================
@@ -981,9 +1303,9 @@ WSQ.EIX.taggedEventAtTouch = function () {
     // 点击事件格中心找不到事件）
     var x = Math.floor($gameMap.canvasToMapX(TouchInput.x));
     var y = Math.floor($gameMap.canvasToMapY(TouchInput.y));
-    var events = $gameMap.eventsXy(x, y);
-    var px = Math.round($gamePlayer.x);
-    var py = Math.round($gamePlayer.y);
+    var events = WSQ.EIX.eventsAt(x, y);
+    var px = WSQ.EIX.playerX();
+    var py = WSQ.EIX.playerY();
     for (var i = 0; i < events.length; i++) {
         var event = events[i];
         if (WSQ.EIX.extractSyms(event).length === 0) continue;
@@ -1017,9 +1339,9 @@ WSQ.EIX.shouldStopAtRange = function () {
     if (!$gameTemp.isDestinationValid()) return false;
     var destX = Math.floor($gameTemp.destinationX());
     var destY = Math.floor($gameTemp.destinationY());
-    var px = Math.round($gamePlayer.x);
-    var py = Math.round($gamePlayer.y);
-    var events = $gameMap.eventsXy(destX, destY);
+    var px = WSQ.EIX.playerX();
+    var py = WSQ.EIX.playerY();
+    var events = WSQ.EIX.eventsAt(destX, destY);
     for (var i = 0; i < events.length; i++) {
         var event = events[i];
         if (WSQ.EIX.extractSyms(event).length === 0) continue;
@@ -1110,6 +1432,10 @@ Game_Player.prototype.triggerAction = function () {
         if (WSQ.EIX.executeCurrent()) {
             return true;
         }
+        // 兜底：列表未开但脚下/面前/周围存在带标签事件 → 强制打开列表（防整页执行）
+        if (WSQ.EIX.ensureMenuOpen()) {
+            return true;
+        }
     }
     return _WSQ_EIX_Game_Player_triggerAction.apply(this, arguments);
 };
@@ -1127,13 +1453,14 @@ Game_Player.prototype.triggerAction = function () {
 WSQ.EIX.blockStartAt = function (x, y, triggers, normal) {
     if (!WSQ.EIX.bool("menuOnlyTrigger", true)) return false;
     if ($gameMap.isEventRunning()) return false;
-    var events = $gameMap.eventsXy(x, y);
+    var events = WSQ.EIX.eventsAt(x, y);
     for (var i = 0; i < events.length; i++) {
         var event = events[i];
         if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
             var syms = WSQ.EIX.extractSyms(event);
             if (syms.length > 0) {
                 WSQ.EIX.reset(event, syms);
+                WSQ.EIX.log("blockStartAt 拦截 (" + x + "," + y + ") → 事件#" + event._id);
                 return true;
             }
         }
@@ -1144,7 +1471,7 @@ WSQ.EIX.blockStartAt = function (x, y, triggers, normal) {
 var _WSQ_EIX_Game_Player_checkEventTriggerHere = Game_Player.prototype.checkEventTriggerHere;
 Game_Player.prototype.checkEventTriggerHere = function (triggers) {
     if (this.canStartLocalEvents() &&
-        WSQ.EIX.blockStartAt(Math.round(this.x), Math.round(this.y), triggers, false)) {
+        WSQ.EIX.blockStartAt(this.x, this.y, triggers, false)) {
         return;
     }
     return _WSQ_EIX_Game_Player_checkEventTriggerHere.apply(this, arguments);
@@ -1269,6 +1596,12 @@ Spriteset_Map.prototype.destroy = function (options) {
     WSQ.EIX.clear();
     WSQ.EIX._sprite = null;
     if (this._wsqEIXSprite) {
+        // 先摘除再销毁：_wsqEIXSprite 挂在 _tilemap 上，若不 removeChild，
+        // 随后的 _tilemap 销毁会对其二次 destroy（_texture 已置 null），
+        // pixi 的 Sprite.destroy 抛 "Cannot read property 'off' of null"。
+        if (this._wsqEIXSprite.parent) {
+            this._wsqEIXSprite.parent.removeChild(this._wsqEIXSprite);
+        }
         if (this._wsqEIXSprite.bitmap) {
             this._wsqEIXSprite.bitmap.destroy();
             this._wsqEIXSprite.bitmap = null;
