@@ -8,13 +8,13 @@ Imported.WSQ_G_DialogPatch = true;
 
 var WSQ = WSQ || {};
 WSQ.DP = WSQ.DP || {};
-WSQ.DP.version = 1.12;
+WSQ.DP.version = 1.14;
 WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 //=============================================================================
 /*:
  * @target MZ
- * @plugindesc [v1.12]        系统 - 对话核心补丁（内联姓名/姓名渐变背景/姓名分隔线/气泡定位/气泡偏移/气泡箭头偏移/气泡动态宽高/对话框自动换行控制/字体装饰\font）
+ * @plugindesc [v1.14]        系统 - 对话核心补丁（内联姓名/姓名渐变背景/姓名分隔线/气泡定位/气泡偏移/气泡箭头偏移/气泡动态宽高/对话框自动换行控制/字体装饰\font/普通对话框自动避让/气泡禁用总开关）
  * @author WSQ
  * @url https://afdian.net/a/ganfly
  * @orderAfter GF_2_CoreOfDialog
@@ -51,6 +51,15 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *  9. 对话框自动换行：参数「对话框自动换行」统一控制普通框/气泡框
  *                     （跟随系统 / 强制开启 / 强制关闭）。
  *  10. \font 文字装饰：见下方「控制字符」。
+ *  11. 普通对话框自动避让：在地图场景使用普通对话框（非气泡）时，根据说话角色
+ *     的屏幕位置自动把对话框放到角色对面一侧——角色位于屏幕下半部分 → 对话框
+ *     置于顶部；位于上半部分 → 对话框置于底部（不考虑中间），避免遮挡说话人。
+ *     判定对象为触发当前对话的地图事件，取不到（公共事件/菜单内对话等）时回退
+ *     为玩家。参数见「普通对话框自动避让」组，可用插件指令 WSQAutoAvoid 切换。
+ *  12. 气泡禁用总开关：一条插件指令 WSQDisableBubble 即可禁用所有气泡对话框——
+ *     包括 姓名自动定位气泡、按“气泡数据”系统参数触发的原生冒泡、脚本接口
+ *     WSQ.DP.setBubbleTarget 手动指定的气泡，一律强制使用默认对话框（普通框）。
+ *     可随时再次执行插件指令恢复气泡。开关写入存档，跨场景/读档保持。
  *
  * ============================================================================
  *  控制字符（\font 文字装饰）
@@ -107,6 +116,11 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *    WSQBubbleArrowOffset OffsetYAbove / OffsetYBelow   设定气泡箭头专属偏移
  *                       （头顶/脚下分别设置；只传 OffsetY 时头顶/脚下同用）
  *    WSQAutoWordWrap    mode:auto/on/off    设定对话框自动换行
+ *    WSQAutoAvoid       enable:true/false   切换普通对话框自动避让
+ *    WSQDisableBubble   enable:true/false   切换“气泡禁用总开关”
+ *                       enable:true → 禁用所有气泡对话框（含姓名自动定位气泡/
+ *                       原生冒泡/手动指定目标），强制使用默认对话框；
+ *                       enable:false → 恢复气泡对话框
  *  （均写入存档，跨场景/读档保持）
  *
  * ============================================================================
@@ -346,6 +360,44 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @max 20
  * @default 3
  * @desc \font[o1] 开启描边时的描边宽度（像素）。
+ *
+ * @param AutoAvoidSet
+ * @text ── 普通对话框自动避让 ──
+ *
+ * @param AutoAvoidEnabled
+ * @parent AutoAvoidSet
+ * @text 启用自动避让
+ * @type boolean
+ * @on 启用
+ * @off 关闭
+ * @default false
+ * @desc 在地图场景使用普通对话框（非气泡）时，自动按说话角色的屏幕位置决定
+ *       对话框放顶部还是底部：角色位于屏幕下半部分 → 对话框置于顶部；
+ *       位于上半部分 → 对话框置于底部（不考虑中间），避免遮挡说话人。
+ *       判定对象为触发当前对话的地图事件，取不到时回退为玩家。
+ *       可用插件指令 WSQAutoAvoid 运行时切换。
+ *
+ * @param AutoAvoidThreshold
+ * @parent AutoAvoidSet
+ * @text 下半部分判定比例
+ * @type number
+ * @min 0
+ * @max 1
+ * @decimals 2
+ * @default 0.5
+ * @desc 判定“屏幕下半部分”的分界比例。说话角色的屏幕 Y 坐标
+ *       ≥（屏幕高度 × 此值）即视为位于下半部分 → 对话框置顶；否则置底。
+ *       0.5 表示以屏幕中线为界。
+ *
+ * @command WSQDisableBubble
+ * @text 禁用所有气泡对话框（气泡禁用总开关）
+ * @desc enable:true → 禁用所有气泡对话框（含姓名自动定位气泡/原生冒泡/手动指定目标），强制使用默认对话框；enable:false → 恢复气泡。开关写入存档，跨场景/读档保持。
+ *
+ * @arg enable
+ * @text 是否启用“禁用气泡”
+ * @desc true = 禁用所有气泡，强制使用默认对话框；false = 恢复气泡。
+ * @type boolean
+ * @default false
  */
 //=============================================================================
 
@@ -448,6 +500,16 @@ let fontOutlineWidth = Number(WSQ.DP.Parameters["FontOutlineWidth"]);
 if (!Number.isFinite(fontOutlineWidth)) fontOutlineWidth = 3;
 WSQ.DP.Param.FontOutlineWidth = Math.max(0, Math.min(20, fontOutlineWidth));
 
+// 普通对话框自动避让：启用开关
+WSQ.DP.Param.AutoAvoidEnabled = String(
+    WSQ.DP.Parameters["AutoAvoidEnabled"] || "false"
+).trim().toLowerCase() === "true";
+
+// 普通对话框自动避让：“下半部分”判定比例（0~1，默认屏幕中线）
+let autoAvoidThreshold = Number(WSQ.DP.Parameters["AutoAvoidThreshold"]);
+if (!Number.isFinite(autoAvoidThreshold)) autoAvoidThreshold = 0.5;
+WSQ.DP.Param.AutoAvoidThreshold = Math.min(1, Math.max(0, autoAvoidThreshold));
+
 // 颜色解析（参照 GF_3_AlchemySystem 的 AlchemyManager._resolveColor / 本项目
 // WSQ_Achievement 的同款实现）
 // 支持：数字=系统颜色编号（ColorManager.textColor）、#rrggbb=自定义颜色、opacity/透明=该侧透明
@@ -502,6 +564,27 @@ WSQ.DP.setAutoWordWrap = function (mode) {
     if ($gameSystem) {
         $gameSystem._wsqDpAutoWordWrap = ["auto", "on", "off"].includes(m) ? m : "auto";
     }
+};
+
+// 当前是否启用“普通对话框自动避让”。
+// 优先读取存档中的运行时开关（由插件指令 WSQAutoAvoid 设置），否则回退到插件参数。
+WSQ.DP.autoAvoidEnabled = function () {
+    if ($gameSystem && $gameSystem._wsqDpAutoAvoid !== undefined) {
+        return !!$gameSystem._wsqDpAutoAvoid;
+    }
+    return WSQ.DP.Param.AutoAvoidEnabled;
+};
+
+// 当前“气泡禁用总开关”是否生效。
+// 优先读取存档中的运行时开关（由插件指令 WSQDisableBubble 设置），
+// 否则视为关闭（不拦截任何气泡，行为与接入前一致）。
+// 生效时禁用所有气泡对话框（含姓名自动定位气泡/原生冒泡/手动指定目标），
+// 一律强制使用默认对话框。
+WSQ.DP.bubbleDisabled = function () {
+    if ($gameSystem && $gameSystem._wsqDpBubbleDisabled !== undefined) {
+        return !!$gameSystem._wsqDpBubbleDisabled;
+    }
+    return false;
 };
 
 // 当前是否启用姓名分隔线。
@@ -856,6 +939,23 @@ PluginManager.registerCommand(WSQ.DP.pluginName, "WSQAutoWordWrap", (args) => {
     }
 });
 
+PluginManager.registerCommand(WSQ.DP.pluginName, "WSQAutoAvoid", (args) => {
+    const enable = String(args.enable || "false").trim().toLowerCase() === "true";
+    if ($gameSystem) {
+        $gameSystem._wsqDpAutoAvoid = enable;
+    }
+});
+
+// “气泡禁用总开关”：enable:true → 禁用所有气泡对话框（含姓名自动定位气泡、
+// 原生冒泡、手动指定目标），强制使用默认对话框；enable:false → 恢复气泡。
+// 开关写入存档，跨场景/读档保持。
+PluginManager.registerCommand(WSQ.DP.pluginName, "WSQDisableBubble", (args) => {
+    const enable = String(args.enable || "false").trim().toLowerCase() === "true";
+    if ($gameSystem) {
+        $gameSystem._wsqDpBubbleDisabled = enable;
+    }
+});
+
 //=============================================================================
 // Window_Message : 动态气泡宽高
 //=============================================================================
@@ -1108,7 +1208,7 @@ Window_Message.prototype.changeToBubble = function () {
     }
 };
 
-// 每条新消息开始时复位首页标记（姓名只画在首页）。
+// 每条新消息开始时复位首页标记（姓名只画在首页）与“自动避让”标记。
 WSQ.DP.Window_Message_startMessage = Window_Message.prototype.startMessage;
 Window_Message.prototype.startMessage = function () {
     this._wsqFirstPage = true;
@@ -1116,6 +1216,7 @@ Window_Message.prototype.startMessage = function () {
     this._wsqDpW = !!WSQ.DP.Param.DefaultDynamicWidth;
     this._wsqDpLayoutInner = 0;
     this._wsqDpMinW = 0;
+    this._wsqDpAvoid = null;
     WSQ.DP.Window_Message_startMessage.call(this);
 };
 
@@ -1324,6 +1425,15 @@ Game_Message.prototype.msgWordWrap = function () {
 
 WSQ.DP.Game_Message_setupBubbleSprite = Game_Message.prototype.setupBubbleSprite;
 Game_Message.prototype.setupBubbleSprite = function () {
+    // 气泡禁用总开关：生效时强制使用默认对话框。
+    // 在此短路可一并覆盖 姓名自动定位气泡 / _forcedBubbleTarget 手动指定目标 /
+    // GF 原生按“气泡数据”系统参数的冒泡（不回退原生 setupBubbleSprite），
+    // 并显式置空 _bubbleSprite —— Window_Message.isBubbleStyle() 随即返回 false，
+    // 消息窗在 newPage 的 resetWindowStyle 中走 changeToNormal() 以普通框显示。
+    if (WSQ.DP.bubbleDisabled()) {
+        this._bubbleSprite = null;
+        return;
+    }
     // 已设定则跳过（保留对话核心“只设一次”的语义）
     if (this._bubbleSprite) return;
 
@@ -1642,4 +1752,98 @@ WSQ.DP.Window_Base_resetFontSettings = Window_Base.prototype.resetFontSettings;
 Window_Base.prototype.resetFontSettings = function () {
     WSQ.DP.Window_Base_resetFontSettings.call(this);
     this._wsqFnt = null;
+};
+
+//=============================================================================
+// Window_Message : 普通对话框自动避让
+//=============================================================================
+// 在地图场景的普通对话框（非气泡、非滚动文字）中，自动把对话框放到说话角色的
+// 对面一侧，避免遮挡说话人：
+//   说话角色位于屏幕下半部分 → 对话框置于顶部（y = 0）
+//   说话角色位于屏幕上半部分 → 对话框置于底部（y = boxHeight - height）
+// （两档定位，不考虑中间。）
+// 判定对象：触发当前对话的地图事件（$gameMap._interpreter 的当前事件）；
+// 取不到（公共事件 / 菜单内对话等）时回退为玩家。
+//
+// 挂接点说明：
+//   - 普通对话框的 y 只在 startMessage() 里调用一次 updatePlacement() 时设置，
+//     且此时 changeToNormal() 已按行数/内联姓名/分隔线等算好 this.height，
+//     重算 y 是安全的；气泡对话框由 updatePlacement 原生守卫直接跳过。
+//   - 姓名窗（Window_NameBox）：rmmz 原版已按“消息窗实际 y > 0”自动把姓名窗
+//     摆到消息窗对侧（消息窗在顶部 → 姓名窗在其下方），无需额外处理。
+//   - 金钱窗（goldWindow）：GF 原生已按相反侧自动联动，无需处理。
+//   - 选择窗（Window_ChoiceList）：GF 覆写的 windowY 按 $gameMessage.positionType()
+//     摆放而不读消息窗实际位置——底部消息窗被智能置顶后，选择窗按“消息窗上方”
+//     计算会画出屏幕。故此处覆写 windowY：自动避让生效时改按消息窗实际 y 与
+//     屏幕中线判断（与 rmmz 原版一致），避让未生效时沿用 GF 覆写。
+
+// 当前消息窗是否处于“自动避让”生效状态（普通框 + 开关开 + 已写入定位标记）。
+// _wsqDpAvoid 由下方 updatePlacement 覆写在每条消息开始时写入 'top'/'bottom'，
+// startMessage 覆写会在每条消息开始时把它复位为 null。
+WSQ.DP.isAutoAvoidActive = function (messageWindow) {
+    if (!messageWindow || !messageWindow._wsqDpAvoid) return false;
+    if (!WSQ.DP.autoAvoidEnabled()) return false;
+    if (messageWindow.isBubbleStyle()) return false;
+    return true;
+};
+
+// 地图场景判断（自动避让仅在地图上的普通对话框生效，战斗等场景维持原定位）。
+WSQ.DP.isMapMessageScene = function () {
+    const scene = SceneManager._scene;
+    return !!scene && scene instanceof Scene_Map;
+};
+
+// 解析避让判定目标：优先取触发当前对话的地图事件，
+// 取不到（公共事件 / 菜单内对话 / 玩家自身触发等）时回退为玩家。
+WSQ.DP.resolveAutoAvoidTarget = function () {
+    if (WSQ.DP.isMapMessageScene() && $gameMap && $gameMap._interpreter) {
+        const evId = ($gameMap._interpreter.eventId) ? $gameMap._interpreter.eventId() : 0;
+        if (evId > 0) {
+            const ev = $gameMap.event(evId);
+            if (ev) return ev;
+        }
+    }
+    return $gamePlayer || null;
+};
+
+// 覆写 updatePlacement：链式执行 GF 原生定位后，按说话角色屏幕位置重算 y。
+WSQ.DP.Window_Message_updatePlacement = Window_Message.prototype.updatePlacement;
+Window_Message.prototype.updatePlacement = function () {
+    this._wsqDpAvoid = null;
+    WSQ.DP.Window_Message_updatePlacement.call(this);
+    if (this.isBubbleStyle()) return;
+    if (!WSQ.DP.autoAvoidEnabled()) return;
+    if (!WSQ.DP.isMapMessageScene()) return;
+    const target = WSQ.DP.resolveAutoAvoidTarget();
+    if (!target || typeof target.screenY !== "function") return;
+    const screenY = target.screenY();
+    if (!Number.isFinite(screenY)) return;
+    const threshold = WSQ.DP.Param.AutoAvoidThreshold;
+    const putOnTop = screenY >= Graphics.boxHeight * threshold;
+    this.y = putOnTop ? 0 : Math.floor(Graphics.boxHeight - this.height);
+    // 与 GF 原生一致：避让后的 y 同样叠加通用消息偏移
+    const offset = $gameSystem.messageOffset();
+    this.y += offset.y;
+    // 金钱窗联动：GF 原生已按“消息窗 y > 0”把金钱窗放到对侧，但那是在原生
+    // call 内按默认 y 执行的——消息窗被置顶后这里需按最终 y 重新同步。
+    if (this._goldWindow) {
+        this._goldWindow.y = this.y > 0 ? 0 : Graphics.boxHeight - this._goldWindow.height;
+    }
+    this._wsqDpAvoid = putOnTop ? "top" : "bottom";
+};
+
+// 覆写选择窗 windowY：自动避让生效时改按消息窗实际位置摆放
+// （消息窗在下半 → 选择窗贴其上沿；在上半 → 贴其下沿，与 rmmz 原版一致），
+// 避免“底部消息窗被置顶后选择窗画出屏幕顶部”的问题。
+WSQ.DP.Window_ChoiceList_windowY = Window_ChoiceList.prototype.windowY;
+Window_ChoiceList.prototype.windowY = function () {
+    const messageWindow = this._messageWindow;
+    if (WSQ.DP.isAutoAvoidActive(messageWindow)) {
+        const messageY = messageWindow.y;
+        if (messageY >= Graphics.boxHeight / 2) {
+            return messageY - this.windowHeight();
+        }
+        return messageY + messageWindow.height;
+    }
+    return WSQ.DP.Window_ChoiceList_windowY.call(this);
 };
