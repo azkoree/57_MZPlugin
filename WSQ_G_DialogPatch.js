@@ -8,13 +8,13 @@ Imported.WSQ_G_DialogPatch = true;
 
 var WSQ = WSQ || {};
 WSQ.DP = WSQ.DP || {};
-WSQ.DP.version = 1.14;
+WSQ.DP.version = 1.15;
 WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 //=============================================================================
 /*:
  * @target MZ
- * @plugindesc [v1.14]        系统 - 对话核心补丁（内联姓名/姓名渐变背景/姓名分隔线/气泡定位/气泡偏移/气泡箭头偏移/气泡动态宽高/对话框自动换行控制/字体装饰\font/普通对话框自动避让/气泡禁用总开关）
+ * @plugindesc [v1.15]        系统 - 对话核心补丁（内联姓名/姓名渐变背景/姓名分隔线/气泡定位·含敌方/气泡偏移/战斗气泡偏移/气泡箭头偏移/气泡动态宽高/对话框自动换行控制/字体装饰\font/普通对话框自动避让/气泡禁用总开关）
  * @author WSQ
  * @url https://afdian.net/a/ganfly
  * @orderAfter GF_2_CoreOfDialog
@@ -33,9 +33,11 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *  1. 内联姓名      ：姓名直接显示在对话窗口第一行（不再用独立姓名窗口），
  *                     正文行数不缩水。开关见参数「启用内联姓名」。
  *  2. 姓名显示格式  ：参数「姓名显示格式」，%1 = 说话人姓名，支持 \c[n] 等转义符。
- *  3. 姓名自动定位气泡：姓名框填“事件名 / 队伍角色名 / this / player /
+ *  3. 姓名自动定位气泡：姓名框填“事件名 / 队伍角色名 / 敌人名 / this / player /
  *                     名称 (event 3) / follower: 名称”等，自动以气泡形式
  *                     定位到对应角色/事件头顶（详见参数「启用姓名自动定位气泡」）。
+ *                     战斗中：我方按角色名定位到战斗图，敌方按敌人名定位到敌人
+ *                     战斗图（重名敌人以全角 Ａ/Ｂ 后缀区分，如“山贼Ａ”）。
  *  4. 气泡目标脚本接口：WSQ.DP.setBubbleTarget(spec)，见下方「脚本接口」。
  *  5. 气泡独立偏移  ：参数「气泡偏移 X / 气泡到目标距离 Y·头顶 / 气泡到目标距离 Y·脚下」
  *                     只调整气泡框位置，不影响普通对话窗口。
@@ -45,6 +47,12 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *                     头顶上方与脚下时【箭头】与目标的距离（正值离目标更远、负值更近），
  *                     按朝向生效，替代 GF 皮肤样式里不分朝向的箭头直接平移（bubble_arrow
  *                     的 x/y 仍保留并与其叠加）。
+ *   5b. 战斗气泡偏移  ：参数「气泡偏移 X·战斗 / 气泡到目标距离 Y·战斗·头顶 / ·脚下」
+ *                     仅在战斗场景生效，叠加在上面第 5 条的通用气泡偏移之上
+ *                     （战斗气泡 = 原生定位 + 通用消息偏移 + 通用气泡偏移 + 战斗气泡偏移）。
+ *                     地图气泡完全不受影响；三值保持 0 时行为与旧版一致。
+ *                     注：敌人战斗位图较高（含透明留白），气泡在敌人头顶时天生偏高，
+ *                     通常需要把「Y·战斗·头顶」设为负值把它拉近。
  *  6. 姓名渐变背景  ：给姓名行加渐变背景条，参数见「姓名渐变背景」组。
  *  7. 姓名分隔线    ：姓名与正文间画渐变分隔线，参数见「姓名分隔线」组。
  *  8. 气泡动态宽高  ：文本里插 <dh>/</dh>、<dw>/</dw> 标签，气泡随文字实时伸缩。
@@ -113,6 +121,9 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *    WSQAutoBubbleByName enable:true/false  切换姓名自动定位气泡
  *    WSQBubbleOffset    OffsetX / OffsetYAbove / OffsetYBelow   设定气泡专属偏移
  *                       （头顶/脚下分别设置；只传 OffsetY 时头顶/脚下同用）
+ *    WSQBattleBubbleOffset OffsetX / OffsetYAbove / OffsetYBelow  设定战斗气泡专属偏移
+ *                       （仅战斗场景生效，叠加在 WSQBubbleOffset 之上；
+ *                       只传 OffsetY 时头顶/脚下同用）
  *    WSQBubbleArrowOffset OffsetYAbove / OffsetYBelow   设定气泡箭头专属偏移
  *                       （头顶/脚下分别设置；只传 OffsetY 时头顶/脚下同用）
  *    WSQAutoWordWrap    mode:auto/on/off    设定对话框自动换行
@@ -133,6 +144,9 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *    WSQ.DP.resolveBubbleTargetByName(name) / resolveBubbleDisplayName(name,target)
  *    WSQ.DP.bubbleOffset() / setBubbleOffset(x, yAbove, yBelow)
  *      （yAbove=头顶距离、yBelow=脚下距离；yBelow 省略时与 yAbove 相同）
+ *    WSQ.DP.battleBubbleOffset() / setBattleBubbleOffset(x, yAbove, yBelow)
+ *      （仅战斗场景生效的战斗气泡偏移，叠加在 bubbleOffset 之上；
+ *       yBelow 省略时与 yAbove 相同）
  *    WSQ.DP.bubbleArrowOffset() / setBubbleArrowOffset(yAbove, yBelow)
  *      （气泡箭头到目标距离；yBelow 省略时与 yAbove 相同）
  *    WSQ.DP.resolveColor(str)            解析渐变颜色（数字色号 / #rrggbb / opacity）
@@ -145,6 +159,9 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *    - 本补丁需放置在 GF_2_CoreOfDialog 之后加载。
  *    - 启用内联姓名后，独立姓名窗口会被隐藏（其 NameWindowColor 参数不再生效）。
  *    - 建议姓名格式以 \c[0] 结尾，确保后续正文颜色复位。
+ *    - 战斗气泡：目标必须是【我方战斗角色】或【敌方战斗成员】——战斗精灵按
+ *      battler 实例精确匹配；地图事件、队列跟随者、候补队员在战斗中拿不到战斗图，
+ *      会自动回退为普通对话框。
  * ============================================================================
  *
  * @param NameInlineEnabled
@@ -330,6 +347,41 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *       仅作用于气泡箭头，不影响气泡框位置；与 GF 皮肤样式的箭头平移（bubble_arrow 的 x/y）
  *       叠加。可用插件指令 WSQBubbleArrowOffset / 脚本 WSQ.DP.setBubbleArrowOffset 覆盖。
  *
+ * @param BattleBubbleOffsetSet
+ * @text ── 战斗气泡偏移 ──
+ *
+ * @param BattleBubbleOffsetX
+ * @parent BattleBubbleOffsetSet
+ * @text 气泡偏移 X·战斗
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc 战斗中气泡对话框的专属水平偏移（像素）。仅在战斗场景生效，叠加在「气泡偏移 X」
+ *       之上，地图气泡不受影响；与通用消息偏移同样是叠加关系。
+ *       可用插件指令 WSQBattleBubbleOffset / 脚本 WSQ.DP.setBattleBubbleOffset 覆盖。
+ *
+ * @param BattleBubbleOffsetYAbove
+ * @parent BattleBubbleOffsetSet
+ * @text 气泡到目标距离 Y·战斗·头顶
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc 战斗中气泡显示在目标【头顶上方】时，与目标之间的额外垂直间隙（像素）。
+ *       正值=离目标更远，负值=更靠近目标。仅战斗场景生效，叠加在通用气泡偏移之上。
+ *       敌人战斗位图较高（含透明留白），气泡天生偏高，通常需填负值把它拉近。
+ *
+ * @param BattleBubbleOffsetYBelow
+ * @parent BattleBubbleOffsetSet
+ * @text 气泡到目标距离 Y·战斗·脚下
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc 战斗中气泡显示在目标【脚下】时，与目标之间的额外垂直间隙（像素）。
+ *       正值=离目标更远，负值=更靠近目标。仅战斗场景生效，叠加在通用气泡偏移之上。
+ *
  * @param AutoWordWrap
  * @text 对话框自动换行
  * @type select
@@ -388,6 +440,42 @@ WSQ.DP.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @desc 判定“屏幕下半部分”的分界比例。说话角色的屏幕 Y 坐标
  *       ≥（屏幕高度 × 此值）即视为位于下半部分 → 对话框置顶；否则置底。
  *       0.5 表示以屏幕中线为界。
+ *
+ * @command WSQBattleBubbleOffset
+ * @text 设定战斗气泡专属偏移
+ * @desc 设定仅战斗场景生效的气泡偏移（叠加在 WSQBubbleOffset 之上）。三项均可留空＝保持原值；只填 OffsetY 时头顶/脚下同用。写入存档，跨场景/读档保持。
+ *
+ * @arg OffsetX
+ * @text 气泡偏移 X
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default
+ * @desc 战斗气泡的水平偏移（像素）。留空＝保持原值。
+ *
+ * @arg OffsetYAbove
+ * @text 到目标距离 Y·头顶
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default
+ * @desc 战斗气泡在目标头顶上方时的到目标距离（像素）。留空＝保持原值（仅填 OffsetYBelow 时与其同值）。
+ *
+ * @arg OffsetYBelow
+ * @text 到目标距离 Y·脚下
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default
+ * @desc 战斗气泡在目标脚下时的到目标距离（像素）。留空＝保持原值（仅填 OffsetYAbove 时与其同值）。
+ *
+ * @arg OffsetY
+ * @text 到目标距离 Y（头顶/脚下同用）
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default
+ * @desc 兼容写法：上面两项都留空时才读取，头顶与脚下取同一值。
  *
  * @command WSQDisableBubble
  * @text 禁用所有气泡对话框（气泡禁用总开关）
@@ -476,6 +564,17 @@ WSQ.DP.Param.BubbleOffsetYAbove = Number(WSQ.DP.Parameters["BubbleOffsetYAbove"]
 WSQ.DP.Param.BubbleOffsetYBelow = Number(WSQ.DP.Parameters["BubbleOffsetYBelow"] || 0) || 0;
 WSQ.DP.Param.BubbleArrowOffsetYAbove = Number(WSQ.DP.Parameters["BubbleArrowOffsetYAbove"] || 0) || 0;
 WSQ.DP.Param.BubbleArrowOffsetYBelow = Number(WSQ.DP.Parameters["BubbleArrowOffsetYBelow"] || 0) || 0;
+
+// 战斗气泡偏移（仅战斗场景生效；三项默认 0 时行为与旧版完全一致）。
+// 取数用 isNaN 判定而非 `Number(x) || 默认`：插件管理器里没保存过该键时
+// plugins.js 中不存在该键，用 || 兜底会把"负值/0"一并吃掉。
+const wsxDpNum = (key, def) => {
+    const v = Number(WSQ.DP.Parameters[key]);
+    return Number.isFinite(v) ? v : def;
+};
+WSQ.DP.Param.BattleBubbleOffsetX = wsxDpNum("BattleBubbleOffsetX", 0);
+WSQ.DP.Param.BattleBubbleOffsetYAbove = wsxDpNum("BattleBubbleOffsetYAbove", 0);
+WSQ.DP.Param.BattleBubbleOffsetYBelow = wsxDpNum("BattleBubbleOffsetYBelow", 0);
 
 // 对话框自动换行模式：auto（跟随 GF_0_CoreOfText 全局开关）/ on（强制开启）/ off（强制关闭）。
 let autoWordWrap = String(WSQ.DP.Parameters["AutoWordWrap"] || "auto").trim().toLowerCase();
@@ -689,6 +788,57 @@ WSQ.DP.setBubbleArrowOffset = function (yAbove, yBelow) {
     WSQ.DP._forcedBubbleArrowOffset = { yAbove: Number(yAbove) || 0, yBelow: Number(below) || 0 };
 };
 
+//------------------------------------------------------------------------------
+// 战斗气泡偏移（v1.15 新增，仅战斗场景生效，叠加在通用气泡偏移之上）
+//------------------------------------------------------------------------------
+
+// 战斗气泡偏移的“按对话”临时覆盖（与气泡偏移的覆盖语义一致，结束后复位）。
+WSQ.DP._forcedBattleBubbleOffset = undefined;
+
+// 当前是否应按"战斗气泡"处理。
+// 判定顺序：①消息窗已确认目标是战斗精灵（GF resetWindowStyle 设的 _isBattleSprite，
+// 即 bubbleSprite instanceof Sprite_Battler）→ 最精确；②当前场景是 Scene_Battle
+// （Scene_Battle 继承 Scene_Message，GF 原生即支持战斗气泡）。
+WSQ.DP.isBattleBubble = function (messageWindow) {
+    if (messageWindow && messageWindow._isBattleSprite) return true;
+    const scene = SceneManager && SceneManager._scene;
+    return !!(scene && typeof Scene_Battle === "function" && scene instanceof Scene_Battle);
+};
+
+// 解析当前生效的战斗气泡偏移（按对话覆盖 > 运行时存档 > 插件参数）。
+// 返回 { x, yAbove, yBelow }，语义与 WSQ.DP.bubbleOffset() 完全一致。
+WSQ.DP.battleBubbleOffset = function () {
+    if (WSQ.DP._forcedBattleBubbleOffset) {
+        return WSQ.DP._forcedBattleBubbleOffset;
+    }
+    if ($gameSystem && $gameSystem._wsqDpBattleBubbleOffsetYAbove !== undefined) {
+        return {
+            x: $gameSystem._wsqDpBattleBubbleOffsetX,
+            yAbove: $gameSystem._wsqDpBattleBubbleOffsetYAbove,
+            yBelow: $gameSystem._wsqDpBattleBubbleOffsetYBelow
+        };
+    }
+    return {
+        x: WSQ.DP.Param.BattleBubbleOffsetX,
+        yAbove: WSQ.DP.Param.BattleBubbleOffsetYAbove,
+        yBelow: WSQ.DP.Param.BattleBubbleOffsetYBelow
+    };
+};
+
+// 便捷脚本接口：设定下一段（战斗气泡）对话的战斗气泡偏移。
+//   x       水平像素偏移
+//   yAbove  气泡在目标头顶上方时的“到目标距离”（正值离目标更远、负值更近）
+//   yBelow  气泡在目标脚下时的“到目标距离”（可省略，省略时与 yAbove 相同）
+// 传 null/undefined 则清除本次覆盖，恢复参数/运行时值。
+WSQ.DP.setBattleBubbleOffset = function (x, yAbove, yBelow) {
+    if (x === null || x === undefined || yAbove === null || yAbove === undefined) {
+        WSQ.DP._forcedBattleBubbleOffset = undefined;
+        return;
+    }
+    const below = (yBelow === null || yBelow === undefined) ? yAbove : yBelow;
+    WSQ.DP._forcedBattleBubbleOffset = { x: Number(x) || 0, yAbove: Number(yAbove) || 0, yBelow: Number(below) || 0 };
+};
+
 // 把“aN”形式的字符串解析为队伍中对应数据库编号的角色（Game_Actor）。
 WSQ.DP._findPartyMemberByActorId = function (actorId) {
     if (!actorId) return null;
@@ -702,19 +852,28 @@ WSQ.DP._findPartyMemberByActorId = function (actorId) {
 
 // 按“角色名”查找玩家队伍在地图/战斗中的气泡目标：
 //   - 地图上：领队 -> Game_Player，其他队员 -> 对应队列 Game_Follower；
-//   - 战斗中：返回 Game_Actor（战斗 Sprite 按 Game_Actor 匹配）。
+//   - 战斗中：返回 Game_Actor（战斗 Sprite 按 battler 实例精确匹配）。
+//     ⚠️ 战斗中优先命中【出战成员】：候补队员没有战斗精灵，匹配到了也拿不到气泡目标
+//     （GF 有「指定队伍id的敌人」等原生入口时不影响，此处只是匹配次序）。
 WSQ.DP._findPartyMemberTargetByName = function (name) {
     if (!name) return null;
+    const inBattle = !!($gameParty.inBattle && $gameParty.inBattle());
     const members = ($gameParty && $gameParty.members) ? $gameParty.members() : [];
+    // 战斗中把出战成员排在前面（其余候补仍参与匹配，保证不改变"找得到名字"的语义）。
+    let pool = members;
+    if (inBattle && $gameParty.battleMembers) {
+        const battleMembers = $gameParty.battleMembers();
+        pool = battleMembers.concat(members.filter(a => !battleMembers.includes(a)));
+    }
     const leader = ($gameParty && $gameParty.leader) ? $gameParty.leader() : null;
     const followers = ($gamePlayer && $gamePlayer.followers && $gamePlayer.followers().data)
         ? $gamePlayer.followers().data() : [];
-    for (let i = 0; i < members.length; i++) {
-        const actor = members[i];
+    for (let i = 0; i < pool.length; i++) {
+        const actor = pool[i];
         if (!actor || !actor.name) continue;
         if (actor.name() !== name) continue;
         // 战斗中直接返回角色本体，交给战斗 Spriteset 匹配。
-        if ($gameParty.inBattle && $gameParty.inBattle()) {
+        if (inBattle) {
             return actor;
         }
         // 领队对应玩家本体。
@@ -723,6 +882,43 @@ WSQ.DP._findPartyMemberTargetByName = function (name) {
         const follower = followers.find(f => f && f.actor && f.actor() === actor);
         if (follower) return follower;
         continue;
+    }
+    return null;
+};
+
+// 按“敌人名”查找战斗中的气泡目标（Game_Enemy）。
+// Game_Enemy.name() = 数据库原名 + 重名后缀（中文环境为全角 Ａ/Ｂ…）：
+// 场上两只“山贼”→ 第一只显示名“山贼”、第二只“山贼Ａ”。
+// 匹配顺序（每一级都先取存活者，再放宽到全部，便于剧情回指已阵亡的敌人）：
+//   ① 精确匹配 name()：带后缀可点名某一只（如“山贼Ａ”）；
+//   ② 匹配 originalName()：不过滤重名后缀；
+//   ③ 兜底：查询名带后缀、但场上只有不带后缀的同名敌人时（写“山贼Ａ”命中“山贼”）。
+// 比较用 norm() 归一：全角Ａ-Ｚ → 半角，并忽略大小写——中文环境下重名后缀是全角的，
+// 而输入法常打出半角「A」，归一后两种写法都能点名到同一只。
+// ⚠️ 只应在战斗中调用：战斗精灵按 battler 实例匹配，非战斗期拿不到精灵。
+WSQ.DP._findEnemyTargetByName = function (name) {
+    if (!name) return null;
+    const troop = ($gameTroop && $gameTroop.members) ? $gameTroop.members() : [];
+    if (troop.length === 0) return null;
+    const alive = troop.filter(e => e && (!e.isAlive || e.isAlive()));
+    const norm = (s) => (s === null || s === undefined ? "" : String(s))
+        .replace(/[\uFF21-\uFF3A\uFF41-\uFF5A]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/[A-Za-z]/g, (ch) => ch.toLowerCase());
+    const nameOf = (e, fn) => (e && typeof e[fn] === "function" ? e[fn]() : null);
+    // 先查存活者，再查全部
+    const pick = (cond) => alive.find(cond) || troop.find(cond);
+
+    const key = norm(name);
+    let hit = pick(e => norm(nameOf(e, "name")) === key);
+    if (hit) return hit;
+    hit = pick(e => norm(nameOf(e, "originalName")) === key);
+    if (hit) return hit;
+
+    // 兜底：查询名以字母（半角 A-Z / 全角 Ａ-Ｚ）结尾时，去掉尾字母再匹配一次
+    const stripped = key.replace(/[a-z]$/, "");
+    if (stripped !== key && stripped !== "") {
+        hit = pick(e => norm(nameOf(e, "originalName")) === stripped);
+        if (hit) return hit;
     }
     return null;
 };
@@ -772,7 +968,15 @@ WSQ.DP.resolveBubbleDisplayName = function (name, target) {
 };
 
 // 按“姓名”解析气泡目标角色（参照 Hendrix 同名事件匹配 + 关键字）。
-// 返回 Game_Character / Game_Actor，未匹配返回 null。
+// 地图：地图事件（Game_Event）/ 队伍角色（Game_Player、Game_Follower）。
+// 战斗：我方出战角色（Game_Actor）/ 敌方战斗成员（Game_Enemy）——战斗精灵由
+//   Spriteset_Battle.findTargetSprite 按 battler 实例精确匹配，所以必须返回
+//   Game_Actor / Game_Enemy 本体。
+//   因此战斗中【不做地图事件回退】：地图事件、队列跟随者、候补队员都没有战斗图，
+//   返回了也只会拿到空精灵（气泡静默失效）。战斗未命中即回退普通对话框。
+//   同名时优先我方角色，再匹配敌方（保持既有对话的行为不变）。
+// 【v1.15】新增敌方按名字定位。
+// 返回 Game_Character / Game_Actor / Game_Enemy，未匹配返回 null。
 WSQ.DP.resolveBubbleTargetByName = function (name) {
     if (!name) return null;
     // 支持 \V[n] 变量替换（与对话核心一致）
@@ -781,25 +985,27 @@ WSQ.DP.resolveBubbleTargetByName = function (name) {
     const clean = raw.replace(/\\C\[(\d+)\]/gi, "").trim();
     if (clean === "") return null;
     const lower = clean.toLowerCase();
+    const inBattle = !!($gameParty.inBattle && $gameParty.inBattle());
 
-    // 当前事件
-    if (lower === "this" || /\(this\)$/i.test(clean)) {
-        const evId = ($gameMap._interpreter && $gameMap._interpreter.eventId) ? $gameMap._interpreter.eventId() : 0;
-        return evId > 0 ? $gameMap.event(evId) : null;
-    }
-    // 指定事件 ID：Name (event 3) 或 Name (3)
-    const evIdMatch = clean.match(/\((?:event\s*)?(\d+)\)\s*$/i);
-    if (evIdMatch) {
-        return $gameMap.event(parseInt(evIdMatch[1], 10)) || null;
+    // 当前事件 / 指定事件 ID：仅地图有意义（战斗中地图事件没有战斗图）。
+    if (!inBattle) {
+        if (lower === "this" || /\(this\)$/i.test(clean)) {
+            const evId = ($gameMap._interpreter && $gameMap._interpreter.eventId) ? $gameMap._interpreter.eventId() : 0;
+            return evId > 0 ? $gameMap.event(evId) : null;
+        }
+        const evIdMatch = clean.match(/\((?:event\s*)?(\d+)\)\s*$/i);
+        if (evIdMatch) {
+            return $gameMap.event(parseInt(evIdMatch[1], 10)) || null;
+        }
     }
     // 玩家：地图上返回 Game_Player，战斗中返回领队角色（与对话核心的“领队角色”一致）。
     if (lower === "player") {
-        if ($gameParty.inBattle && $gameParty.inBattle()) {
+        if (inBattle) {
             return ($gameParty.leader && $gameParty.leader()) || $gamePlayer;
         }
         return $gamePlayer;
     }
-    // 跟随者：follower: 名称 / follower: 序号
+    // 跟随者：follower: 名称 / follower: 序号（战斗中映射为其角色本体）
     if (lower.startsWith("follower:")) {
         const fid = clean.substring(9).trim();
         const followers = ($gamePlayer.followers && $gamePlayer.followers().data)
@@ -809,17 +1015,25 @@ WSQ.DP.resolveBubbleTargetByName = function (name) {
         if (!isNaN(aid)) {
             const f = followers[aid - 1] || null;
             if (!(f && f.actor && f.actor())) return null;
-            return ($gameParty.inBattle && $gameParty.inBattle()) ? f.actor() : f;
+            return inBattle ? f.actor() : f;
         }
         for (let i = 0; i < followers.length; i++) {
             const f = followers[i];
             if (f && f.actor && f.actor() && f.actor().name() === fid) {
-                return ($gameParty.inBattle && $gameParty.inBattle()) ? f.actor() : f;
+                return inBattle ? f.actor() : f;
             }
         }
         return null;
     }
-    // 优先按地图事件名匹配（仅匹配有活动页的事件），保持原有事件名定位习惯。
+
+    // 战斗中：先按角色名匹配我方战斗图，再按敌人名匹配敌方战斗图。
+    if (inBattle) {
+        const partyTarget = WSQ.DP._findPartyMemberTargetByName(clean);
+        if (partyTarget) return partyTarget;
+        return WSQ.DP._findEnemyTargetByName(clean);
+    }
+
+    // 地图：优先按地图事件名匹配（仅匹配有活动页的事件），保持原有事件名定位习惯。
     const ev = $gameMap.events().find(e => e.event() && e.event().name === clean && e.page() !== null);
     if (ev) return ev;
     // 再按玩家队伍角色名匹配（领队 / 队列跟随者）。
@@ -829,13 +1043,17 @@ WSQ.DP.resolveBubbleTargetByName = function (name) {
 
 // 便捷脚本接口：设定下一段对话的气泡目标。
 //   spec 为数字：1+ 事件ID / 0 本事件 / -1 玩家 / <-1 跟随者
-//   spec 为字符串："aN" 队伍角色(数据库编号N) / 其它 按事件名或队伍角色名匹配
+//   spec 为字符串："aN" 队伍角色(数据库编号N) / 其它按事件名、我方角色名或敌人名匹配
 //   spec 为 null/undefined：清除手动指定，回退对话核心默认
+// 【v1.15】战斗兼容：战斗中「本事件」「事件ID」没有战斗图，一律按“显式不显示气泡”
+// 处理（null）；-1 玩家映射为出战领队角色；跟随者映射为其角色本体；"aN" 与名字匹配
+// 会自动落到战斗角色/敌人本体（resolveBubbleTargetByName 已分流）。
 WSQ.DP.setBubbleTarget = function (spec) {
     if (spec === null || spec === undefined) {
         WSQ.DP._forcedBubbleTarget = undefined;
         return;
     }
+    const inBattle = !!($gameParty.inBattle && $gameParty.inBattle());
     let target = null;
     if (typeof spec === "string") {
         const aMatch = String(spec).trim().match(/^a(\d+)$/i);
@@ -848,19 +1066,25 @@ WSQ.DP.setBubbleTarget = function (spec) {
         const n = Number(spec);
         if (!isNaN(n)) {
             if (n >= 1) {
-                target = $gameMap.event(n);
+                target = inBattle ? null : $gameMap.event(n);
             } else if (n === 0) {
-                const evId = ($gameMap._interpreter && $gameMap._interpreter.eventId) ? $gameMap._interpreter.eventId() : 0;
-                target = evId > 0 ? $gameMap.event(evId) : null;
+                if (inBattle) {
+                    target = null;
+                } else {
+                    const evId = ($gameMap._interpreter && $gameMap._interpreter.eventId) ? $gameMap._interpreter.eventId() : 0;
+                    target = evId > 0 ? $gameMap.event(evId) : null;
+                }
             } else if (n === -1) {
-                target = $gamePlayer;
+                target = inBattle
+                    ? (($gameParty.leader && $gameParty.leader()) || $gamePlayer)
+                    : $gamePlayer;
             } else {
                 const idx = -n - 2; // -2->0, -3->1 ...
                 const followers = ($gamePlayer.followers && $gamePlayer.followers().data)
                     ? $gamePlayer.followers().data()
                     : (($gamePlayer._followers && $gamePlayer._followers.data) ? $gamePlayer._followers.data() : []);
                 const f = followers[idx] || null;
-                target = f && ($gameParty.inBattle && $gameParty.inBattle()) ? f.actor() : f;
+                target = (f && inBattle) ? f.actor() : f;
             }
         }
     }
@@ -913,6 +1137,35 @@ PluginManager.registerCommand(WSQ.DP.pluginName, "WSQBubbleOffset", (args) => {
     }
 });
 
+// 战斗气泡专属偏移：仅战斗场景生效，叠加在 WSQBubbleOffset 之上。
+// 写入 $gameSystem._wsqDpBattleBubbleOffset*（进存档，跨场景/读档保持）。
+// 三项均可留空＝保持原值；OffsetYAbove/OffsetYBelow 都留空时读 OffsetY（头顶/脚下同用）。
+PluginManager.registerCommand(WSQ.DP.pluginName, "WSQBattleBubbleOffset", (args) => {
+    const hasX = args.OffsetX !== undefined && String(args.OffsetX) !== "";
+    const hasAbove = args.OffsetYAbove !== undefined && String(args.OffsetYAbove) !== "";
+    const hasBelow = args.OffsetYBelow !== undefined && String(args.OffsetYBelow) !== "";
+    const hasY = args.OffsetY !== undefined && String(args.OffsetY) !== "";
+    if ($gameSystem) {
+        if (hasX) {
+            $gameSystem._wsqDpBattleBubbleOffsetX = Number(args.OffsetX) || 0;
+        }
+        if (hasAbove || hasBelow) {
+            // 头顶/脚下分别设置；未填的一项回退为已填的另一项
+            const yAbove = hasAbove ? (Number(args.OffsetYAbove) || 0) : (Number(args.OffsetYBelow) || 0);
+            const yBelow = hasBelow ? (Number(args.OffsetYBelow) || 0) : (Number(args.OffsetYAbove) || 0);
+            $gameSystem._wsqDpBattleBubbleOffsetYAbove = yAbove;
+            $gameSystem._wsqDpBattleBubbleOffsetYBelow = yBelow;
+        } else if (hasY) {
+            // 兼容写法：仅传 OffsetY → 头顶/脚下同用
+            const y = Number(args.OffsetY) || 0;
+            $gameSystem._wsqDpBattleBubbleOffsetYAbove = y;
+            $gameSystem._wsqDpBattleBubbleOffsetYBelow = y;
+        }
+        // 三组都留空时不做任何改动（保持现有值，不清零）。
+    }
+});
+
+// 气泡箭头专属偏移：仅作用于气泡箭头，不影响气泡框位置。
 PluginManager.registerCommand(WSQ.DP.pluginName, "WSQBubbleArrowOffset", (args) => {
     const hasAbove = args.OffsetYAbove !== undefined && String(args.OffsetYAbove) !== "";
     const hasBelow = args.OffsetYBelow !== undefined && String(args.OffsetYBelow) !== "";
@@ -1312,26 +1565,41 @@ Window_Message.prototype.synchronizeNameBox = function () {
 // 判断不受影响，故呈现“头上更近、脚下越来越远”的怪异行为。
 // 【v1.11】Y 偏移拆分为头顶/脚下两个参数（BubbleOffsetYAbove / BubbleOffsetYBelow），
 // 分别控制气泡在目标上方与下方时的“到目标距离”。
+// 【v1.15】新增战斗专用偏移（BattleBubbleOffsetX / YAbove / YBelow）：仅在战斗场景
+// 生效，叠加在通用气泡偏移之上，让“地图调好的一套”与“战斗需要的一套”互不干扰。
 WSQ.DP.Window_Message_updateBubblePosition = Window_Message.prototype.updateBubblePosition;
 Window_Message.prototype.updateBubblePosition = function () {
     if (WSQ.DP.Window_Message_updateBubblePosition) {
         WSQ.DP.Window_Message_updateBubblePosition.call(this);
     }
     if (this.visible && this.isBubbleStyle() && !this.isOpening() && !this.isClosing()) {
-        const off = WSQ.DP.bubbleOffset();
         const sprite = $gameMessage.bubbleSprite();
-        // X 偏移：水平方向无上下歧义，直接叠加。
+        // 朝向判定与 GF 原生翻转条件完全一致（原生公式 < 0 即翻转到下方），
+        // 不依赖叠加偏移后的 this.y，杜绝 messageOffset 等外部偏移的污染。
+        // 该判定与偏移量无关，两种偏移共用同一结果，故只算一次。
+        const spacing = this._isBattleSprite ? 48 : 24;
+        const bubbleBelow = sprite
+            ? (sprite.y - sprite.height - this.height - spacing) < 0
+            : false;
+
+        // ① 通用气泡偏移（地图与战斗共用）
+        const off = WSQ.DP.bubbleOffset();
         this.x += off.x;
-        // Y 偏移：按朝向取对应的“到目标距离”（头顶/脚下可分别设置）。
         if (sprite) {
-            // 朝向判定与 GF 原生翻转条件完全一致（原生公式 < 0 即翻转到下方），
-            // 不依赖叠加偏移后的 this.y，杜绝 messageOffset 等外部偏移的污染。
-            const spacing = this._isBattleSprite ? 48 : 24;
-            const yAbove = sprite.y - sprite.height - this.height - spacing;
-            const bubbleBelow = yAbove < 0;
             this.y += bubbleBelow ? off.yBelow : -off.yAbove;
         } else {
             this.y += off.yAbove;
+        }
+
+        // ② 战斗专用气泡偏移（仅战斗场景，叠加在①之上；三值全 0 时行为与旧版一致）
+        if (WSQ.DP.isBattleBubble(this)) {
+            const boff = WSQ.DP.battleBubbleOffset();
+            this.x += boff.x;
+            if (sprite) {
+                this.y += bubbleBelow ? boff.yBelow : -boff.yAbove;
+            } else {
+                this.y += boff.yAbove;
+            }
         }
     }
 };
@@ -1484,6 +1752,7 @@ Game_Message.prototype.clear = function () {
     WSQ.DP._forcedBubbleTarget = undefined;
     WSQ.DP._forcedBubbleOffset = undefined;
     WSQ.DP._forcedBubbleArrowOffset = undefined;
+    WSQ.DP._forcedBattleBubbleOffset = undefined;
 };
 
 //=============================================================================
