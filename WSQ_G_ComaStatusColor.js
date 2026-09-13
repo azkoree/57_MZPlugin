@@ -1,10 +1,11 @@
 //=============================================================================
 // GF Plugins
-// GF_4_ComaStatusColor.js
+// WSQ_G_ComaStatusColor.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_4_ComaStatusColor = true;
+Imported.WSQ_G_ComaStatusColor = true;
+Imported.GF_4_ComaStatusColor = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.CSC = GF.CSC || {};

@@ -1,10 +1,11 @@
 //=============================================================================
 // GF Plugins
-// GF_4_CallEnemy.js
+// WSQ_CallEnemy.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_4_CallEnemy = true;
+Imported.WSQ_CallEnemy = true;
+Imported.GF_4_CallEnemy = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.CLE = GF.CLE || {};
@@ -340,7 +341,7 @@ CLE.Param.SummonCoodBind = (() => {
             }
         }
     } catch (e) {
-        console.warn('GF_4_CallEnemy: SummonCoodBind parse error', e);
+        console.warn('WSQ_CallEnemy: SummonCoodBind parse error', e);
     }
     return data;
 })();
@@ -408,7 +409,7 @@ function CLE_getCallEnemyId(action) {
         if (!subject) return null;
         if (!subject.isEnemy()) {
             // 主角使用此技能时需在注记中明确指定敌人 ID
-            console.warn('GF_4_CallEnemy: <CallEnemy> without ID used by non-enemy subject, ignored');
+            console.warn('WSQ_CallEnemy: <CallEnemy> without ID used by non-enemy subject, ignored');
             return null;
         }
         const dataEnemy = subject.enemy();

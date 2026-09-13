@@ -1,10 +1,11 @@
 //=============================================================================
 // GF Patch Plugins
-// GF_Patch_ItemInfoPatch.js
+// WSQ_G_ItemInfoPatch.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_ItemInfoPatch = true;
+Imported.WSQ_G_ItemInfoPatch = true;
+Imported.GF_ItemInfoPatch = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.Patch = GF.Patch || {};
@@ -72,14 +73,14 @@ GF.Patch.ItemInfoWheelScroll = { version: 1.01 };
 //=============================================================================
 
 if (!Imported.GF_3_ItemInfoWindow) {
-    alert("错误:未找到前置插件 GF_3_ItemInfoWindow。\n请确保 GF_ItemInfoPatch.js 放在 GF_3_ItemInfoWindow 下方。");
+    alert("错误:未找到前置插件 GF_3_ItemInfoWindow。\n请确保 WSQ_G_ItemInfoPatch.js 放在 GF_3_ItemInfoWindow 下方。");
 }
 
 //=============================================================================
 // Parameter Variables
 //=============================================================================
 
-GF.Parameters = PluginManager.parameters('GF_ItemInfoPatch');
+GF.Parameters = PluginManager.parameters('WSQ_G_ItemInfoPatch');
 GF.Patch.ItemInfoWheelScroll.EnableWordWrap =
     eval(GF.Parameters['EnableWordWrap'] || 'false');
 

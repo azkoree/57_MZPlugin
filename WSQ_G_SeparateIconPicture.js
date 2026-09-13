@@ -1,10 +1,11 @@
 //=============================================================================
 // GF Patch Plugins
-// GF_Patch_SeparateIconPicture.js
+// WSQ_G_SeparateIconPicture.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_Patch_SeparateIconPicture = true;
+Imported.WSQ_G_SeparateIconPicture = true;
+Imported.GF_Patch_SeparateIconPicture = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.Patch = GF.Patch || {};
@@ -86,10 +87,10 @@ GF.Patch.SeparateIconPicture = { version: 1.00 };
 //=============================================================================
 
 if (!Imported.GF_1_CoreOfWindowUI) {
-    alert("错误: 未找到前置插件 GF_1_CoreOfWindowUI。\n请确保 GF_Patch_SeparateIconPicture.js 放在 GF_1_CoreOfWindowUI 下方。");
+    alert("错误: 未找到前置插件 GF_1_CoreOfWindowUI。\n请确保 WSQ_G_SeparateIconPicture.js 放在 GF_1_CoreOfWindowUI 下方。");
 }
 if (!Imported.GF_3_ItemInfoWindow) {
-    alert("错误: 未找到前置插件 GF_3_ItemInfoWindow。\n请确保 GF_Patch_SeparateIconPicture.js 放在 GF_3_ItemInfoWindow 下方。");
+    alert("错误: 未找到前置插件 GF_3_ItemInfoWindow。\n请确保 WSQ_G_SeparateIconPicture.js 放在 GF_3_ItemInfoWindow 下方。");
 }
 
 //=============================================================================

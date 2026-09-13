@@ -1,10 +1,11 @@
 //=============================================================================
 // GF Plugins
-// GF_3_AlchemySystem.js
+// WSQ_AlchemySystem.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_3_AlchemySystem = true;
+Imported.WSQ_AlchemySystem = true;
+Imported.GF_3_AlchemySystem = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.AHS = GF.AHS || {};
@@ -74,7 +75,7 @@ GF.AHS.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *     可以在主菜单设置进入合成菜单的按钮
  *     关键字：alchemy
  *     按钮名称：return '合成';
- *     是否显示按钮：return Imported.GF_3_AlchemySystem;
+ *     是否显示按钮：return Imported.WSQ_AlchemySystem;
  *     是否允许激活按钮：return true;
  *     按钮激活后效果：运行代码
  *     按钮激活运行代码：SceneManager.push(Scene_Alchemy);

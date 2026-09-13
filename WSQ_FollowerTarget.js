@@ -1,9 +1,10 @@
 //=============================================================================
-// FollowerTarget.js
+// WSQ_FollowerTarget.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.FollowerTarget = true;
+Imported.WSQ_FollowerTarget = true;
+Imported.FollowerTarget = true; // 兼容别名（旧引用保留）
 
 //=============================================================================
 /*:
@@ -110,7 +111,7 @@ Imported.FollowerTarget = true;
 
     const PLUGIN_NAME = document.currentScript
         ? decodeURIComponent(document.currentScript.src.match(/^.*\/(.+)\.js$/)[1])
-        : "FollowerTarget";
+        : "WSQ_FollowerTarget";
 
     // =========================================================================
     // Plugin Command Registration

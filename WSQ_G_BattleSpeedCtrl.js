@@ -1,10 +1,11 @@
 //=============================================================================
 // GF Plugins
-// GF_4_BattleSpeedCtrl.js
+// WSQ_G_BattleSpeedCtrl.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_4_BattleSpeedCtrl = true;
+Imported.WSQ_G_BattleSpeedCtrl = true;
+Imported.GF_4_BattleSpeedCtrl = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.BSC = GF.BSC || {};
@@ -149,7 +150,7 @@ GF.BSC.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 //=============================================================================
 
 if (!Imported.GF_2_CoreOfOption) {
-    alert("错误:未找到前置插件 GF_2_CoreOfOption。\n请确保已安装并启用 GF_2_CoreOfOption 插件，并将其放置在 GF_4_BattleSpeedCtrl 插件之前。");
+    alert("错误:未找到前置插件 GF_2_CoreOfOption。\n请确保已安装并启用 GF_2_CoreOfOption 插件，并将其放置在 WSQ_G_BattleSpeedCtrl 插件之前。");
 }
 
 //=============================================================================

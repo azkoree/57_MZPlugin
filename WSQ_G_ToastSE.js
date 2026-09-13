@@ -1,10 +1,11 @@
 //=============================================================================
 // GF Plugins
-// GF_ToastSE.js
+// WSQ_G_ToastSE.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_ToastSE = true;
+Imported.WSQ_G_ToastSE = true;
+Imported.GF_ToastSE = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.TSE = GF.TSE || {};
@@ -21,7 +22,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @base GF_3_ToastSystem
  * @orderAfter GF_3_QuestSystem
  * @orderAfter GF_3_IndependEquipSystem
- * @orderAfter GF_EasySkillMastery
+ * @orderAfter WSQ_G_EasySkillMastery
  *
  * @help
  * ============================================================================
@@ -47,7 +48,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * ---- 可选前置 ----
  *
  * GF_3_QuestSystem           玩法 - 任务系统（若需为任务通知配置音效）
- * GF_EasySkillMastery       系统 - 简易技能熟练度（若需为精通通知配置音效）
+ * WSQ_G_EasySkillMastery       系统 - 简易技能熟练度（若需为精通通知配置音效）
  *
  * ---- 第3层 ----
  *
@@ -304,7 +305,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *
  * @param MasterySE
  * @text ====技能精通音效====
- * @desc 技能熟练度达到精通时使用的音效。（需安装 GF_EasySkillMastery）
+ * @desc 技能熟练度达到精通时使用的音效。（需安装 WSQ_G_EasySkillMastery）
  *
  * @param MasterySEName
  * @text 精通-音效文件名
@@ -366,7 +367,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *
  * @param GlossarySE
  * @text ====词典解锁通知音效====
- * @desc 词典条目解锁时使用的音效。（需安装 GF_3_ExternalGlossary）
+ * @desc 词典条目解锁时使用的音效。（需安装 WSQ_ExternalGlossary）
  *
  * @param GlossarySEName
  * @text 词典解锁-音效文件名
@@ -399,7 +400,7 @@ GF.TSE.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 //=============================================================================
 
 if (!Imported.GF_3_ToastSystem) {
-    alert("错误:未找到前置插件 GF_3_ToastSystem。\n请确保已安装并启用 GF_3_ToastSystem 插件,并将其放置在 GF_ToastSE 插件之前。");
+    alert("错误:未找到前置插件 GF_3_ToastSystem。\n请确保已安装并启用 GF_3_ToastSystem 插件,并将其放置在 WSQ_G_ToastSE 插件之前。");
 }
 
 //=============================================================================
@@ -482,8 +483,8 @@ GF.TSE.TYPE = {
     EXP:      5,   // 经验得失
     LEVEL_UP: 6,   // 角色升级
     QUEST:    7,   // 任务系统
-    MASTERY:  8,   // 技能精通（GF_EasySkillMastery）
-    GLOSSARY: 9,   // 词典解锁（GF_3_ExternalGlossary）
+    MASTERY:  8,   // 技能精通（WSQ_G_EasySkillMastery）
+    GLOSSARY: 9,   // 词典解锁（WSQ_ExternalGlossary）
 };
 
 // Type → param mapping
@@ -626,10 +627,10 @@ if (Imported.GF_3_QuestSystem) {
 }
 
 //=============================================================================
-// Patch: GF_3_ExternalGlossary — 词典解锁通知类型标记
+// Patch: WSQ_ExternalGlossary — 词典解锁通知类型标记
 //=============================================================================
 
-if (Imported.GF_3_ExternalGlossary && GlossaryManager._pushUnlockToast) {
+if (Imported.WSQ_ExternalGlossary && GlossaryManager._pushUnlockToast) {
 
     GF.TSE.GlossaryManager__pushUnlockToast = GlossaryManager._pushUnlockToast;
     GlossaryManager._pushUnlockToast = function (typeId, entryId) {
@@ -717,13 +718,13 @@ Scene_MenuBase.prototype.update = function () {
 };
 
 //=============================================================================
-// Patch: GF_EasySkillMastery — 精通通知类型标记 & 战斗内音效
+// Patch: WSQ_G_EasySkillMastery — 精通通知类型标记 & 战斗内音效
 //=============================================================================
 
-if (Imported.GF_EasySkillMastery) {
+if (Imported.WSQ_G_EasySkillMastery) {
 
     // > 标记精通通知的类型
-    //   GF_EasySkillMastery 在 paySkillCost 中调用 ToastManager.addTextWithStyle，
+    //   WSQ_G_EasySkillMastery 在 paySkillCost 中调用 ToastManager.addTextWithStyle，
     //   我们需要在 pushNewText 之前把类型设为 MASTERY。
     //   这里再包一层 paySkillCost，在原始调用前检测是否即将触发精通通知。
     GF.TSE.Game_BattlerBase_paySkillCost = Game_BattlerBase.prototype.paySkillCost;
@@ -753,8 +754,8 @@ if (Imported.GF_EasySkillMastery) {
     };
 
     // > 战斗场景 — 批次音效钩子
-    //   GF_EasySkillMastery 为 Scene_Battle 添加了完整的 toast 渲染管线，
-    //   但 GF_ToastSE 原本只监听 Scene_Map / Scene_MenuBase。
+    //   WSQ_G_EasySkillMastery 为 Scene_Battle 添加了完整的 toast 渲染管线，
+    //   但 WSQ_G_ToastSE 原本只监听 Scene_Map / Scene_MenuBase。
     //   这里给 Scene_Battle 也加上批次音效刷新，确保战斗中精通通知的音效实时播放。
     GF.TSE.Scene_Battle_update = Scene_Battle.prototype.update;
     Scene_Battle.prototype.update = function () {

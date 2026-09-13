@@ -1,20 +1,21 @@
 //=============================================================================
 // GF Plugins
-// GF_3_ExternalGlossary.js
+// WSQ_ExternalGlossary.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.GF_3_ExternalGlossary = true;
+Imported.WSQ_ExternalGlossary = true;
+Imported.GF_3_ExternalGlossary = true; // 兼容别名（旧引用保留）
 
 var GF = GF || {};
 GF.GGM = GF.GGM || {};
-GF.GGM.version = 1.04;
+GF.GGM.version = 1.10;
 GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 //=============================================================================
 /*:
  * @target MZ
- * @plugindesc [v1.04]        玩法 - 用语词典
+ * @plugindesc [v1.10]        玩法 - 用语词典
  * @author 五十七
  * @url 
  * @orderAfter GF_1_CoreOfWindowUI
@@ -72,7 +73,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *     可以在主菜单设置进入用语词典菜单的按钮
  *     关键字：glossary
  *     按钮名称：return '图鉴';
- *     是否显示按钮：return Imported.GF_3_ExternalGlossary;
+ *     是否显示按钮：return Imported.WSQ_ExternalGlossary;
  *     是否允许激活按钮：return true;
  *     按钮激活后效果：运行代码
  *     按钮激活运行代码：SceneManager.push(Scene_GFGlossary);
@@ -256,6 +257,57 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *  更新日志
  * ============================================================================
  * 
+ * [v1.10] 修复滚动后内容消失/无法滚动的问题：MZ 的 Window_Scrollable 是「分块
+ *         滚动」架构——origin 只承载 scrollY % scrollBlockHeight 的余量，每跨过
+ *         一个块（默认 = itemHeight，约一行高）引擎会调用 paint() 重绘并平移
+ *         _innerChildren。v1.09 的「整页高位图」方案与此冲突：
+ *         - Window_GFGlossaryContent 继承的 Window_Selectable.paint 会在跨块
+ *           瞬间 contents.clear() 清空整张内容位图 → 一滚就消失；
+ *         - Window_GFGlossaryReading 的 origin 被钳制在一行内，滚动量无法生效。
+ *         修复：两个窗口把 scrollBlockWidth/scrollBlockHeight 设为整个内容高度
+ *         （overallHeight），origin 直接承载全部滚动量、永不跨块，paint() 与
+ *         moveInnerChildrenBy() 永不触发（Content 另保留空 paint 兜底），
+ *         长位图随 origin 完整滚动。
+ * [v1.09] 文本描述窗口接入 GF 窗口核心滚动条（条目阅读画面 + 阅读弹窗）：
+ *         文本超出窗口可视高度时自动显示 GF 滚动条（Sprite_ScrollBar）。
+ *         - Window_GFGlossaryContent：重写 overallHeight 按实际内容高度判断
+ *           是否需要滚动；内容绘制到可变高的 contents 位图，origin 滚动生效；
+ *           未激活时也允许滚轮滚动；方向键可滚动长文本；换条目/换页回到顶部。
+ *         - Window_GFGlossaryReading：基类由 Window_Base 改为 Window_Scrollable
+ *           （补齐 itemWidth/itemHeight/paint 最小接口并激活窗口），自动获得
+ *           GF 滚动条、滚轮与平滑滚动；方向键可滚动。
+ *         - 阅读弹窗拖拽滚动条期间不再判定关闭，防止误关。
+ * [v1.08] 图片显示修复：
+ *         1. 图片异步加载后不重绘，导致第一次选中条目时不显示图片、第二次选中
+ *            （位图已被缓存）才显示。现为主图与附加图注册加载完成回调，加载完毕
+ *            自动整页重绘（含防串图保护：仅当位图仍归属当前条目时才刷新）。
+ *         2. 描述文本被「!picName || picPriority === 'bottom'」条件跳过——配置了
+ *            图片且优先度为 top（默认）时文本永远不显示。现改为文本始终绘制：
+ *            优先度 top 且图片已绘出时，文本从图片下沿开始；bottom 或无图片时
+ *            从顶部开始。
+ *         3. 实现此前未生效的参数「图片自动缩小」(AutoResizePicture)：开启时
+ *            图片按 pictureScale 缩放后若仍超出窗口内容区，自动等比缩小到
+ *            刚好放下（条目阅读画面与阅读弹窗均生效）。
+ * [v1.07] 退出动画补全：两个界面（词典选择/条目阅读）退出场景时，按「菜单退出
+ *         延迟」倒放当前可见窗口的入场动画（窗口 invertInitParamData，按钮组
+ *         invertCommandMove，参照 GF_3_QuestSystem 的场景退场模式）。
+ *         从条目阅读画面退回词典选择画面时，同样先倒放阅读画面窗口
+ *         （invertInitParamData + processInitParamCallBack 回调驱动），动画播完
+ *         再切回词典选择画面，并带 600 帧兜底计时防回调丢失卡死。
+ * [v1.06] 返回键导航调整：从「词典选择画面」选中词典进入「条目阅读画面」后，
+ *         按取消键统一退回词典选择画面（原行为：仅当存在多个词典时才退回列表，
+ *         单词典时直接退出整个词典界面回到上级菜单）。
+ *         通过插件指令/脚本（打开指定词典、打开词典并跳转等）直接进入阅读画面时，
+ *         取消键仍直接退出词典界面，不受本次调整影响。
+ * [v1.05] 界面背景拆分与阅读弹窗背景：
+ *         1. 词典主界面背景按画面状态拆分为两个独立参数（词典菜单设置>>SelectLayoutFile /
+ *            BrowseLayoutFile）：「词典选择画面」（词典列表）与「条目阅读画面」（打开词典后的
+ *            分类/条目列表/内容界面）可分别配置背景图，留空自动回退「资源-整体布局」。
+ *         2. 词典 JSON 数据自带的 backPicture 现在在「条目阅读画面」中生效（作为该画面背景，
+ *            优先于通用条目阅读背景），并修复了其原先因插入层级过低而不可见的问题。
+ *         3. 阅读弹窗新增自定义背景（阅读弹窗设置>>ReadingPopupBackFile / ReadingPopupBackOpacity）：
+ *            配置后阅读弹窗不再截取当前画面作背景，改用指定背景图整屏铺底；留空时保留原截图写法
+ *            作为兜底，避免黑屏。
  * [v1.04] 防跳过机制改由独立参数「防跳过时长」控制锁定时间（默认 90 帧 = 1.5 秒），
  *         不再按移动时长+移动延迟计算（原公式在默认「不移动」弹窗下仅 20 帧 ≈ 0.33 秒，
  *         感知不到效果）。「防跳过」总开关保留。
@@ -778,6 +830,25 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *       收起动画时长由窗口移动时间（WindowMoving.MoveTime）决定。
  * @default {"WindowX":"200","WindowY":"100","WindowWidth":"880","WindowHeight":"520","WindowFontSize":"22","WindowFontFace":"","WindowLineHeight":"36","WindowMoving":"{\"MoveType\":\"不移动\",\"MoveTime\":\"20\",\"MoveDelay\":\"0\",\"OpacityLock\":\"false\",\"StartPoint\":\"\",\"CoordinateType\":\"相对坐标\",\"SlideX\":\"0\",\"SlideY\":\"0\",\"SlideAbsoluteX\":\"0\",\"SlideAbsoluteY\":\"0\"}","WindowLayout":"{\"LayoutType\":\"默认皮肤\",\"Background\":\"\",\"BackgroundFile\":\"\",\"BackgroundX\":\"0\",\"BackgroundY\":\"0\"}"}
  *
+ * @param ReadingPopupBackFile
+ * @text 背景贴图
+ * @parent ReadingPopupSet
+ * @type file
+ * @dir img/
+ * @require 1
+ * @desc 阅读弹窗（解锁弹出的小窗）的整屏背景图。配置后弹窗不再截取当前画面作为背景，
+ *       而是使用这张背景图整屏铺底（自动拉伸至全屏）。留空则沿用原先的"截取当前画面"写法作兜底。
+ * @default 
+ *
+ * @param ReadingPopupBackOpacity
+ * @text 背景透明度
+ * @parent ReadingPopupSet
+ * @type number
+ * @min 0
+ * @max 255
+ * @desc 背景贴图的不透明度，0~255，255 为完全不透明。
+ * @default 255
+ *
  * @param ReadingPopupAntiSkip
  * @text 防跳过
  * @parent ReadingPopupSet
@@ -807,6 +878,26 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @dir img/
  * @require 1
  * @desc 词典界面的整体布局背景图。
+ * @default 
+ *
+ * @param SelectLayoutFile
+ * @text 词典选择画面背景
+ * @parent MenuSet
+ * @type file
+ * @dir img/
+ * @require 1
+ * @desc 词典选择画面（显示词典列表）的整屏背景图，留空则使用「资源-整体布局」MainLayoutFile。
+ * @default 
+ *
+ * @param BrowseLayoutFile
+ * @text 条目阅读画面背景
+ * @parent MenuSet
+ * @type file
+ * @dir img/
+ * @require 1
+ * @desc 打开某个词典后的条目阅读画面（分类条、条目列表与内容区）的整屏背景图，留空则使用
+ *       「资源-整体布局」MainLayoutFile。注意：若该词典的 JSON 数据配置了 backPicture，
+ *       则优先显示词典自带的 backPicture，此参数仅在词典未配置 backPicture 时生效。
  * @default 
  *
  * @param PopDelay
@@ -1369,6 +1460,9 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     );
     GF.Param.GGMReadingPopupAntiSkip = eval(GF.Parameters['ReadingPopupAntiSkip'] || 'true');
     GF.Param.GGMReadingPopupAntiSkipTime = Number(GF.Parameters['ReadingPopupAntiSkipTime'] || 90);
+    // ---- 阅读弹窗背景（配置后不再截取当前画面作背景） ----
+    GF.Param.GGMReadingPopupBackFile = String(GF.Parameters['ReadingPopupBackFile'] || '');
+    GF.Param.GGMReadingPopupBackOpacity = Number(GF.Parameters['ReadingPopupBackOpacity'] !== undefined ? GF.Parameters['ReadingPopupBackOpacity'] : 255);
 
     // ---- 窗口设置 ----
     GF.Param.GGMHelpWindowSet = DataManager.setupWindowInitParam(
@@ -1392,6 +1486,10 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
     // ---- 菜单设置 ----
     GF.Param.GGMMainLayoutFile = String(GF.Parameters['MainLayoutFile'] || '');
+    // 词典选择画面背景（留空回退 MainLayoutFile）
+    GF.Param.GGMSelectLayoutFile = String(GF.Parameters['SelectLayoutFile'] || '');
+    // 条目阅读画面背景（留空回退 MainLayoutFile）
+    GF.Param.GGMBrowseLayoutFile = String(GF.Parameters['BrowseLayoutFile'] || '');
     GF.Param.GGMPopDelay = Number(GF.Parameters['PopDelay'] || 20);
 
     //=========================================================================
@@ -1429,7 +1527,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
                 }
             }
         } catch (e) {
-            console.warn('GF_ExternalGlossary: Failed to load ' + filePath, e);
+            console.warn('WSQ_ExternalGlossary: Failed to load ' + filePath, e);
         }
     }
 
@@ -1673,8 +1771,11 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
          * @param {number} entryId 条目ID
          */
         static openReadingPopup(typeId, entryId) {
-            // 截取当前屏幕作为背景（RMMZ 标准方法）
-            SceneManager.snapForBackground();
+            // 配置了自定义背景图时不再截取当前画面作背景（截图写法仅作为未配置时的兜底）
+            if (!GF.Param.GGMReadingPopupBackFile) {
+                // 截取当前屏幕作为背景（RMMZ 标准方法）
+                SceneManager.snapForBackground();
+            }
             $gameTemp._glossaryReadingData = { typeId: typeId, entryId: entryId };
             SceneManager.push(Scene_GFGlossaryReading);
         }
@@ -1785,7 +1886,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
                                 unlocked = true;
                             }
                         } catch (e) {
-                            console.warn('GF_ExternalGlossary: Script error in unlock condition', e);
+                            console.warn('WSQ_ExternalGlossary: Script error in unlock condition', e);
                         }
                     }
                     break;
@@ -2033,6 +2134,26 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         GF.Param.GGMUnlockNotifyMode = mode;
     });
 
+    //-------------------------------------------------------------------------
+    // 兼容别名：旧插件名 GF_3_ExternalGlossary 下的同名指令
+    //-------------------------------------------------------------------------
+    // 事件里的「插件指令」（代码 357）第 1 个参数记录的是*当时*的插件文件名，
+    // 改名后 PluginManager 按新名查找 → 旧名指令会静默失效（不报错、无提示）。
+    // PluginManager._commands 是扁平表、键为 "插件名:指令名"，故按前缀复制一份。
+    // 若日后把事件里的指令名迁移为 WSQ_ExternalGlossary，本段可整体删除。
+    (function () {
+        const commands = PluginManager._commands;
+        if (!commands) return;
+        const newName = GF.GGM.pluginName;
+        const oldName = 'GF_3_ExternalGlossary';
+        const prefix = newName + ':';
+        Object.keys(commands).forEach(function (key) {
+            if (key.indexOf(prefix) === 0) {
+                commands[oldName + ':' + key.slice(prefix.length)] = commands[key];
+            }
+        });
+    })();
+
     //=========================================================================
     // Window_GFGlossaryReading — 阅读弹窗
     //=========================================================================
@@ -2041,11 +2162,42 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         this.initialize.apply(this, arguments);
     };
 
-    Window_GFGlossaryReading.prototype = Object.create(Window_Base.prototype);
+    Window_GFGlossaryReading.prototype = Object.create(Window_Scrollable.prototype);
     Window_GFGlossaryReading.prototype.constructor = Window_GFGlossaryReading;
 
+    // Window_Scrollable 依赖的最小窗口接口（updateOrigin / 平滑滚动使用）
+    Window_GFGlossaryReading.prototype.itemWidth = function () {
+        return this.innerWidth;
+    };
+    Window_GFGlossaryReading.prototype.itemHeight = function () {
+        return this.lineHeight();
+    };
+    Window_GFGlossaryReading.prototype.paint = function () {
+        // 内容由 refresh 全量重绘，无需按块重画
+    };
+
+    // MZ 的滚动是「分块」架构：origin 只承载 scrollY % scrollBlockHeight 的余量，
+    // 每跨过一个块（默认 = itemHeight，约一行高），引擎会调用 paint() 重绘位图并
+    // 平移 _innerChildren。本窗口采用「整页高位图」方案（内容全画在一张长位图上，
+    // paint 为空实现），因此必须把块高设为整个内容高度——origin 直接承载全部滚动
+    // 量、永不跨块，paint()/moveInnerChildrenBy() 永不触发，长位图随 origin 完整滚动。
+    // 否则 origin 被钳制在一行内，滚动量无法生效，内容卡死或被清空。
+    Window_GFGlossaryReading.prototype.scrollBlockHeight = function () {
+        return Math.max(1, this.overallHeight());
+    };
+    Window_GFGlossaryReading.prototype.scrollBlockWidth = function () {
+        return Math.max(1, this.scrollBlockHeight());
+    };
+
+    // 内容总高（供 needScrollBar / maxScrollY 判断是否需要滚动）
+    Window_GFGlossaryReading.prototype.overallHeight = function () {
+        return Math.max(this.innerHeight, this._gfm_bitmapH || 0);
+    };
+
     Window_GFGlossaryReading.prototype.initialize = function () {
-        Window_Base.prototype.initialize.call(this);
+        // 继承 Window_Scrollable：接入 GF 窗口核心滚动条、滚轮与平滑滚动
+        Window_Scrollable.prototype.initialize.call(this);
+        this.activate();
         this._windowSet = GF.Param.GGMReadingPopupWindowSet;
         this._typeId = 0;
         this._entryId = 0;
@@ -2061,6 +2213,15 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         };
     };
 
+    // 方向键滚动长文本
+    Window_GFGlossaryReading.prototype.update = function () {
+        Window_Scrollable.prototype.update.call(this);
+        if (this.isOpen() && this.maxScrollY() > 0) {
+            if (Input.isRepeated('down')) this.smoothScrollDown(1);
+            if (Input.isRepeated('up')) this.smoothScrollUp(1);
+        }
+    };
+
     Window_GFGlossaryReading.prototype.setEntry = function (typeId, entryId) {
         this._typeId = typeId;
         this._entryId = entryId;
@@ -2074,6 +2235,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         this.contents.clear();
         this.contentsBack.clear();
         if (this._typeId <= 0 || this._entryId <= 0) return;
+        // 内容切换（换条目/换页/图片加载重绘）时回到顶部
+        this.scrollTo(0, 0);
 
         var entry = GlossaryManager.getEntry(this._typeId, this._entryId);
         if (!entry) return;
@@ -2135,20 +2298,51 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         var picPos = page.picturePosition || GF.Param.GGMPicturePosition || 'top';
         var picAlign = page.pictureAlign || GF.Param.GGMPictureAlign || 'center';
         var picPriority = page.picturePriority || GF.Param.GGMPicturePriority || 'top';
-        var picScale = page.pictureScale || 1.0;
-        var picX = page.pictureX || 0;
-        var picY = page.pictureY || 0;
-        var textY = page.textPosition || 0;
+        var picScale = Number(page.pictureScale) > 0 ? Number(page.pictureScale) : 1.0;
+        var picX = Number(page.pictureX) || 0;
+        var picY = Number(page.pictureY) || 0;
+        var textY = Number(page.textPosition) || 0;
         var enemyId = page.enemyId || 0;
         var titleHeight = this.lineHeight() + 4;
 
         var processedDesc = this._processControlChars(desc, enemyId, entry);
+        var lines = this._gfmLayoutTextLines(processedDesc);
 
+        // 主图：loadPicture 为异步加载，首次调用时 isReady() 必为 false。
+        // 必须注册加载完成回调整页重绘，否则图片要到第二次选中（位图已被缓存）才显示。
+        var picDrawn = false;
         if (picName) {
             this._pictureBitmap = ImageManager.loadPicture(picName);
+            const bmp = this._pictureBitmap;
+            if (bmp && bmp.isReady()) {
+                picDrawn = true;
+            } else if (bmp && !bmp._gfmRedrawBound) {
+                bmp._gfmRedrawBound = true;
+                bmp.addLoadListener(() => {
+                    // 仅当仍是当前条目的位图时才重绘，防止切换条目后旧图回调误刷
+                    if (this._pictureBitmap === bmp) this.refresh();
+                });
+            }
         }
 
-        if (this._pictureBitmap && this._pictureBitmap.isReady()) {
+        // 文本起始位置：图片优先度 top（图片在上）时从图片下沿开始；
+        // bottom（图片在下）或无图片时从标题下方开始。
+        var textStartY = titleHeight + textY;
+        if (picName && picPriority === 'top' && picDrawn) {
+            textStartY = this._gfmCalcPictureBottom(picPos, picScale, picY, titleHeight) + 8;
+        }
+
+        // 内容总高度：超出窗口可视高度时启用 GF 窗口核心滚动条
+        var lh = this.lineHeight();
+        var contentHeight = Math.max(
+            this.innerHeight,
+            textStartY + lines.length * lh + 8,
+            picDrawn ? this._gfmCalcPictureBottom(picPos, picScale, picY, titleHeight) + 8 : 0
+        );
+        this._gfmEnsureContentsHeight(contentHeight);
+
+        // 绘制主图（bottom 锚定使用最终位图高度）
+        if (picDrawn) {
             this._drawPicture(this._pictureBitmap, picPos, picAlign, picPriority, picScale, picX, picY, titleHeight);
         }
 
@@ -2157,24 +2351,103 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         for (var i = 0; i < extraPics.length; i++) {
             var ep = extraPics[i];
             if (ep.filename) {
-                var bmp = ImageManager.loadPicture(ep.filename);
-                this._extraPictures.push({ bitmap: bmp, x: ep.x || 0, y: ep.y || 0 });
-                if (bmp.isReady()) {
-                    this.contents.blt(bmp, 0, 0, bmp.width, bmp.height, ep.x || 0, ep.y || 0);
+                var ebmp = ImageManager.loadPicture(ep.filename);
+                this._extraPictures.push({ bitmap: ebmp, x: ep.x || 0, y: ep.y || 0 });
+                if (ebmp.isReady()) {
+                    this.contents.blt(ebmp, 0, 0, ebmp.width, ebmp.height, ep.x || 0, ep.y || 0);
+                } else {
+                    ebmp.addLoadListener(() => {
+                        if (this._extraPictures.some(e => e.bitmap === ebmp)) this.refresh();
+                    });
                 }
             }
         }
 
-        if (!picName || picPriority === 'bottom') {
-            this._drawTextContent(processedDesc, titleHeight + textY);
+        // 绘制描述文本
+        this._gfmDrawTextLines(lines, textStartY);
+    };
+
+    //=========================================================================
+    // GF 窗口核心滚动条接入
+    //=========================================================================
+
+    // 文本预排版：按手动换行 + 自动换行拆行，返回行数组（不绘制）
+    Window_GFGlossaryReading.prototype._gfmLayoutTextLines = function (desc) {
+        if (!desc) return [];
+        var maxWidth = this.innerWidth - this.itemPadding() * 2 - 8;
+        var lines = desc.split(/\\n/);
+        if (GF.Param.GGMAutoLineWrap) {
+            var wrapped = [];
+            for (var li = 0; li < lines.length; li++) {
+                var wrapResult = this._wrapLine(lines[li], maxWidth);
+                for (var wi = 0; wi < wrapResult.length; wi++) {
+                    wrapped.push(wrapResult[wi]);
+                }
+            }
+            lines = wrapped;
+        }
+        return lines;
+    };
+
+    // 绘制已排版的文本行
+    Window_GFGlossaryReading.prototype._gfmDrawTextLines = function (lines, startY) {
+        var lh = this.lineHeight();
+        var y = startY;
+        for (var i = 0; i < lines.length; i++) {
+            this.drawTextEx(lines[i], 0, y);
+            y += lh;
         }
     };
 
-    Window_GFGlossaryReading.prototype._drawPicture = function (bitmap, picPos, picAlign, picPriority, picScale, picX, picY, titleOffset) {
-        if (!bitmap || !bitmap.isReady()) return;
+    // 计算主图下沿 Y（用于文本起始位置与内容高度计算）。
+    // top/text 位置时图片实际绘制在标题下方（dy = picY + titleOffset，见 _drawPicture），
+    // 因此必须加上 titleOffset，否则文本起点比图片下沿高出一行标题 → 首行文字叠在图上。
+    // bottom 锚定时贴内容底部，不额外撑高内容。
+    Window_GFGlossaryReading.prototype._gfmCalcPictureBottom = function (picPos, picScale, picY, titleOffset) {
+        var bmp = this._pictureBitmap;
+        if (!bmp) return 0;
+        if (picPos === 'bottom') return this._gfm_bitmapH || this.innerHeight;
+        var bmpH = bmp.height * picScale;
+        // 与 _drawPicture 的自动缩小保持一致
+        if (GF.Param.GGMAutoResizePicture) {
+            var bmpW = bmp.width * picScale;
+            if (bmpW > this.innerWidth || bmpH > this.innerHeight) {
+                bmpH *= Math.min(this.innerWidth / bmpW, this.innerHeight / bmpH);
+            }
+        }
+        return picY + (titleOffset || 0) + bmpH;
+    };
 
-        var bmpW = bitmap.width * picScale;
-        var bmpH = bitmap.height * picScale;
+    // 确保内容位图足够高（高于窗口时 GF 滚动条自动显示，origin 滚动生效）
+    Window_GFGlossaryReading.prototype._gfmEnsureContentsHeight = function (height) {
+        var h = Math.ceil(Math.max(this.innerHeight, height));
+        if (this._gfm_bitmapH !== h) {
+            this.contents = new Bitmap(this.innerWidth, h);
+            this.contentsBack = new Bitmap(this.innerWidth, h);
+            this._gfm_bitmapH = h;
+            // 通知 GF 滚动条刷新位置
+            this._drill_MSB_needRefresh = true;
+        }
+        // 夹紧滚动位置到新的可滚动范围
+        this.scrollTo(this.scrollX(), Math.min(this.scrollY(), this.maxScrollY()));
+    };
+
+    Window_GFGlossaryReading.prototype._drawPicture = function (bitmap, picPos, picAlign, picPriority, picScale, picX, picY, titleOffset) {
+        if (!bitmap || !bitmap.isReady()) return 0;
+
+        let bmpW = bitmap.width * picScale;
+        let bmpH = bitmap.height * picScale;
+
+        // 图片自动缩小：开启时若图片超出窗口内容区，等比缩小到刚好放下
+        if (GF.Param.GGMAutoResizePicture) {
+            const maxW = this.innerWidth;
+            const maxH = this.innerHeight;
+            if (bmpW > maxW || bmpH > maxH) {
+                const factor = Math.min(maxW / bmpW, maxH / bmpH);
+                bmpW *= factor;
+                bmpH *= factor;
+            }
+        }
 
         var dx = 0;
         switch (picAlign) {
@@ -2187,7 +2460,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         var dy = picY + titleOffset;
         switch (picPos) {
             case 'top': dy = picY + titleOffset; break;
-            case 'bottom': dy = this.innerHeight - bmpH - picY; break;
+            case 'bottom': dy = (this._gfm_bitmapH || this.innerHeight) - bmpH - picY; break;
             case 'text': default: dy = picY + titleOffset; break;
         }
 
@@ -2196,31 +2469,13 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         } else {
             this.contents.blt(bitmap, 0, 0, bitmap.width, bitmap.height, dx, dy, bmpW, bmpH);
         }
+        // 返回图片下沿的 Y 坐标（相对窗口 contents），供文本起始位置计算
+        return dy + bmpH;
     };
 
     Window_GFGlossaryReading.prototype._drawTextContent = function (desc, startY) {
-        if (!desc) return;
-        var lh = this.lineHeight();
-        var maxWidth = this.innerWidth - this.itemPadding() * 2 - 8;
-
-        var lines = desc.split(/\\n/);
-
-        if (GF.Param.GGMAutoLineWrap) {
-            var wrapped = [];
-            for (var li = 0; li < lines.length; li++) {
-                var wrapResult = this._wrapLine(lines[li], maxWidth);
-                for (var wi = 0; wi < wrapResult.length; wi++) {
-                    wrapped.push(wrapResult[wi]);
-                }
-            }
-            lines = wrapped;
-        }
-
-        var y = startY || this.lineHeight() + 4;
-        for (var i = 0; i < lines.length; i++) {
-            this.drawTextEx(lines[i], 0, y);
-            y += lh;
-        }
+        // 兼容包装：排版 + 绘制
+        this._gfmDrawTextLines(this._gfmLayoutTextLines(desc), startY || this.lineHeight() + 4);
     };
 
     Window_GFGlossaryReading.prototype._wrapLine = function (line, maxWidth) {
@@ -2302,7 +2557,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         if (entry && entry.noPageNumber) return;
         var pageText = (this._currentPage + 1) + '/' + this._maxPages;
         var pw = this.textWidth(pageText);
-        this.drawText(pageText, (this.innerWidth - pw) / 2, this.innerHeight - this.lineHeight(), pw, 'center');
+        // 贴内容底部（可滚动时随内容滚动到末尾可见）
+        this.drawText(pageText, (this.innerWidth - pw) / 2, (this._gfm_bitmapH || this.innerHeight) - this.lineHeight(), pw, 'center');
     };
 
     Window_GFGlossaryReading.prototype.cursorRight = function (wrap) {
@@ -2511,9 +2767,9 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             this.changePaintOpacity(true);
             if (category.iconIndex > 0) {
                 this.drawIcon(category.iconIndex, rect.x, rect.y + (rect.height - ImageManager.iconWidth) / 2);
-                this.drawText(category.name, rect.x + ImageManager.iconWidth + 4, rect.y, rect.width - ImageManager.iconWidth - 4, 'left');
+                this.drawText(category.name, rect.x + ImageManager.iconWidth + 4, rect.y, rect.width - ImageManager.iconWidth - 4, 'center');
             } else {
-                this.drawText(category.name, rect.x, rect.y, rect.width, 'left');
+                this.drawText(category.name, rect.x, rect.y, rect.width, 'center');
             }
         }
 
@@ -2747,6 +3003,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             this.contents.clear();
             this.contentsBack.clear();
             if (this._typeId <= 0 || this._entryId <= 0) return;
+            // 内容切换（换条目/换页/图片加载重绘）时回到顶部
+            this.scrollTo(0, 0);
 
             const entry = GlossaryManager.getEntry(this._typeId, this._entryId);
             if (!entry) return;
@@ -2804,19 +3062,50 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             const picPos = page.picturePosition || GF.Param.GGMPicturePosition || 'top';
             const picAlign = page.pictureAlign || GF.Param.GGMPictureAlign || 'center';
             const picPriority = page.picturePriority || GF.Param.GGMPicturePriority || 'top';
-            const picScale = page.pictureScale || 1.0;
-            const picX = page.pictureX || 0;
-            const picY = page.pictureY || 0;
-            const textY = page.textPosition || 0;
+            const picScale = Number(page.pictureScale) > 0 ? Number(page.pictureScale) : 1.0;
+            const picX = Number(page.pictureX) || 0;
+            const picY = Number(page.pictureY) || 0;
+            const textY = Number(page.textPosition) || 0;
             const enemyId = page.enemyId || 0;
 
-            let processedDesc = this._processControlChars(desc, enemyId, entry);
+            const processedDesc = this._processControlChars(desc, enemyId, entry);
+            const lines = this._gfmLayoutTextLines(processedDesc);
 
+            // 主图：loadPicture 为异步加载，首次调用时 isReady() 必为 false。
+            // 必须注册加载完成回调整页重绘，否则图片要到第二次选中（位图已被缓存）才显示。
+            let picDrawn = false;
             if (picName) {
                 this._pictureBitmap = ImageManager.loadPicture(picName);
+                const bmp = this._pictureBitmap;
+                if (bmp && bmp.isReady()) {
+                    picDrawn = true;
+                } else if (bmp && !bmp._gfmRedrawBound) {
+                    bmp._gfmRedrawBound = true;
+                    bmp.addLoadListener(() => {
+                        // 仅当仍是当前条目的位图时才重绘，防止切换条目后旧图回调误刷
+                        if (this._pictureBitmap === bmp) this.refresh();
+                    });
+                }
             }
 
-            if (this._pictureBitmap && this._pictureBitmap.isReady()) {
+            // 文本起始位置：图片优先度 top（图片在上）时从图片下沿开始；
+            // bottom（图片在下）或无图片时从顶部开始。
+            let textStartY = textY;
+            if (picName && picPriority === 'top' && picDrawn) {
+                textStartY = this._gfmCalcPictureBottom(picPos, picScale, picY) + 8;
+            }
+
+            // 内容总高度：超出窗口可视高度时启用 GF 窗口核心滚动条
+            const lh = this.lineHeight();
+            const contentHeight = Math.max(
+                this.innerHeight,
+                textStartY + lines.length * lh + 8,
+                picDrawn ? this._gfmCalcPictureBottom(picPos, picScale, picY) + 8 : 0
+            );
+            this._gfmEnsureContentsHeight(contentHeight);
+
+            // 绘制主图（bottom 锚定使用最终位图高度）
+            if (picDrawn) {
                 this._drawPicture(this._pictureBitmap, picPos, picAlign, picPriority, picScale, picX, picY);
             }
 
@@ -2825,30 +3114,144 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             for (let i = 0; i < extraPics.length; i++) {
                 const ep = extraPics[i];
                 if (ep.filename) {
-                    const bmp = ImageManager.loadPicture(ep.filename);
-                    this._extraPictures.push({ bitmap: bmp, x: ep.x || 0, y: ep.y || 0 });
-                    if (bmp.isReady()) {
-                        this.contents.blt(bmp, 0, 0, bmp.width, bmp.height, ep.x || 0, ep.y || 0);
+                    const ebmp = ImageManager.loadPicture(ep.filename);
+                    this._extraPictures.push({ bitmap: ebmp, x: ep.x || 0, y: ep.y || 0 });
+                    if (ebmp.isReady()) {
+                        this.contents.blt(ebmp, 0, 0, ebmp.width, ebmp.height, ep.x || 0, ep.y || 0);
+                    } else {
+                        ebmp.addLoadListener(() => {
+                            if (this._extraPictures.some(e => e.bitmap === ebmp)) this.refresh();
+                        });
                     }
                 }
             }
 
-            if (!picName || picPriority === 'bottom') {
-                this._drawTextContent(processedDesc, textY);
-            }
+            // 绘制描述文本
+            this._gfmDrawTextLines(lines, textStartY);
 
+            // 页码：贴内容底部（可滚动时随内容滚动到末尾可见）
             if (GF.Param.GGMShowPageNumber && this._maxPages > 1 && !entry.noPageNumber) {
                 const pageText = (this._currentPage + 1) + '/' + this._maxPages;
                 const pw = this.textWidth(pageText);
-                this.drawText(pageText, (this.innerWidth - pw) / 2, this.innerHeight - this.lineHeight(), pw, 'center');
+                this.drawText(pageText, (this.innerWidth - pw) / 2, this._gfm_bitmapH - lh, pw, 'center');
             }
         }
 
-        _drawPicture(bitmap, picPos, picAlign, picPriority, picScale, picX, picY) {
-            if (!bitmap || !bitmap.isReady()) return;
+        //=====================================================================
+        // GF 窗口核心滚动条接入
+        //=====================================================================
 
-            const bmpW = bitmap.width * picScale;
-            const bmpH = bitmap.height * picScale;
+        // 内容总高（供 needScrollBar / maxScrollY 判断是否需要滚动）
+        overallHeight() {
+            return Math.max(this.innerHeight, this._gfm_bitmapH || 0);
+        }
+
+        // MZ 的滚动是「分块」架构：origin 只承载 scrollY % scrollBlockHeight 的余量，
+        // 每跨过一个块（默认 = itemHeight，约一行高），引擎会调用 paint() 重绘位图并
+        // 平移 _innerChildren。本窗口采用「整页高位图」方案（内容全画在一张长位图上），
+        // 因此必须把块高设为整个内容高度——origin 直接承载全部滚动量、永不跨块，
+        // paint()/moveInnerChildrenBy() 永不触发，长位图随 origin 完整滚动。
+        // 否则继承的 Window_Selectable.paint 会在跨块瞬间 contents.clear() 清空整张
+        // 内容位图，导致「一滚就整个条目消失」。
+        scrollBlockHeight() {
+            return Math.max(1, this.overallHeight());
+        }
+
+        scrollBlockWidth() {
+            return Math.max(1, this.scrollBlockHeight());
+        }
+
+        // 块高 = 内容总高时永不跨块，此方法不会被调用；保留空实现兜底，
+        // 防止继承的 Window_Selectable.paint 清空内容位图
+        paint() {
+        }
+
+        // 内容窗口未激活（正在条目列表选条目）时也允许滚轮滚动
+        isWheelScrollEnabled() {
+            return this.isOpen();
+        }
+
+        // 方向键滚动长文本
+        update() {
+            Window_Selectable.prototype.update.call(this);
+            if (this.isOpen() && this.maxScrollY() > 0) {
+                if (Input.isRepeated('down')) this.smoothScrollDown(1);
+                if (Input.isRepeated('up')) this.smoothScrollUp(1);
+            }
+        }
+
+        // 文本预排版：按手动换行 + 自动换行拆行，返回行数组（不绘制）
+        _gfmLayoutTextLines(desc) {
+            if (!desc) return [];
+            const maxWidth = this.innerWidth - this.itemPadding() * 2 - 8;
+            let lines = desc.split(/\\n/);
+            if (GF.Param.GGMAutoLineWrap) {
+                const wrapped = [];
+                for (const line of lines) {
+                    Array.prototype.push.apply(wrapped, this._wrapLine(line, maxWidth));
+                }
+                lines = wrapped;
+            }
+            return lines;
+        }
+
+        // 绘制已排版的文本行
+        _gfmDrawTextLines(lines, startY) {
+            const lh = this.lineHeight();
+            let y = startY;
+            for (const line of lines) {
+                this.drawTextEx(line, 0, y);
+                y += lh;
+            }
+        }
+
+        // 计算主图下沿 Y（用于文本起始位置与内容高度计算）。
+        // bottom 锚定时贴内容底部，不额外撑高内容。
+        _gfmCalcPictureBottom(picPos, picScale, picY) {
+            const bmp = this._pictureBitmap;
+            if (!bmp) return 0;
+            if (picPos === 'bottom') return this._gfm_bitmapH || this.innerHeight;
+            let bmpH = bmp.height * picScale;
+            // 与 _drawPicture 的自动缩小保持一致
+            if (GF.Param.GGMAutoResizePicture) {
+                const bmpW = bmp.width * picScale;
+                if (bmpW > this.innerWidth || bmpH > this.innerHeight) {
+                    bmpH *= Math.min(this.innerWidth / bmpW, this.innerHeight / bmpH);
+                }
+            }
+            return picY + bmpH;
+        }
+
+        // 确保内容位图足够高（高于窗口时 GF 滚动条自动显示，origin 滚动生效）
+        _gfmEnsureContentsHeight(height) {
+            const h = Math.ceil(Math.max(this.innerHeight, height));
+            if (this._gfm_bitmapH !== h) {
+                this.contents = new Bitmap(this.innerWidth, h);
+                this.contentsBack = new Bitmap(this.innerWidth, h);
+                this._gfm_bitmapH = h;
+                // 通知 GF 滚动条刷新位置
+                this._drill_MSB_needRefresh = true;
+            }
+            // 夹紧滚动位置到新的可滚动范围
+            this.scrollTo(this.scrollX(), Math.min(this.scrollY(), this.maxScrollY()));
+        }
+
+        _drawPicture(bitmap, picPos, picAlign, picPriority, picScale, picX, picY) {
+            if (!bitmap || !bitmap.isReady()) return 0;
+
+            let bmpW = bitmap.width * picScale;
+            let bmpH = bitmap.height * picScale;
+
+            // 图片自动缩小：开启时若图片超出窗口内容区，等比缩小到刚好放下
+            if (GF.Param.GGMAutoResizePicture) {
+                const maxW = this.innerWidth;
+                const maxH = this.innerHeight;
+                if (bmpW > maxW || bmpH > maxH) {
+                    const factor = Math.min(maxW / bmpW, maxH / bmpH);
+                    bmpW *= factor;
+                    bmpH *= factor;
+                }
+            }
 
             let dx = 0;
             switch (picAlign) {
@@ -2861,7 +3264,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             let dy = picY;
             switch (picPos) {
                 case 'top': dy = picY; break;
-                case 'bottom': dy = this.innerHeight - bmpH - picY; break;
+                case 'bottom': dy = (this._gfm_bitmapH || this.innerHeight) - bmpH - picY; break;
                 case 'text': default: dy = picY; break;
             }
 
@@ -2870,30 +3273,13 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             } else {
                 this.contents.blt(bitmap, 0, 0, bitmap.width, bitmap.height, dx, dy, bmpW, bmpH);
             }
+            // 返回图片下沿的 Y 坐标（相对窗口 contents），供文本起始位置计算
+            return dy + bmpH;
         }
 
         _drawTextContent(desc, startY) {
-            if (!desc) return;
-            const lh = this.lineHeight();
-            const maxWidth = this.innerWidth - this.itemPadding() * 2 - 8;
-
-            // 先按手动换行符拆分
-            let lines = desc.split(/\\n/);
-
-            // 启用自动换行时，进一步拆分超长行
-            if (GF.Param.GGMAutoLineWrap) {
-                const wrapped = [];
-                for (const line of lines) {
-                    Array.prototype.push.apply(wrapped, this._wrapLine(line, maxWidth));
-                }
-                lines = wrapped;
-            }
-
-            let y = startY || 0;
-            for (const line of lines) {
-                this.drawTextEx(line, 0, y);
-                y += lh;
-            }
+            // 兼容包装：排版 + 绘制
+            this._gfmDrawTextLines(this._gfmLayoutTextLines(desc), startY || 0);
         }
 
         _wrapLine(line, maxWidth) {
@@ -3249,7 +3635,14 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     class Scene_GFGlossary extends Scene_MenuBase {
         create() {
             super.create();
-            this.createMainLayout(GF.Param.GGMMainLayoutFile);
+            // 返回导航标记：是否从「词典选择画面」点选词典进入「条目阅读画面」。
+            // 为 true 时按取消键退回词典选择画面；为 false（插件指令/脚本直开）时取消直接退出场景。
+            this._browseFromList = false;
+            // 阅读画面 → 选择画面的切换动画进行中标记（防重入 + 兜底计时）
+            this._stateSwitching = false;
+            this._switchTimer = 0;
+            // 背景改为按画面状态（词典选择/条目阅读）切换，由 _showGlossaryList /
+            // _showGlossaryBrowse 统一调用 _updateGlossaryBackdrop 挂载
             this.createHelpWindow();
             this.createGlossaryListWindow();
             this.createCategoryWindow();
@@ -3270,7 +3663,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
                 this._listWindow = new Sprite_GFGlossaryList();
             } else {
                 if (useButtonMode) {
-                    console.warn('GF_ExternalGlossary: 词典列表按钮模式需要 GF_1_CoreOfSpriteUI，已自动回退到窗口模式');
+                    console.warn('WSQ_ExternalGlossary: 词典列表按钮模式需要 GF_1_CoreOfSpriteUI，已自动回退到窗口模式');
                 }
                 this._listWindow = new Window_GFGlossaryList();
             }
@@ -3285,7 +3678,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
                 this._categoryWindow = new Sprite_GFGlossaryCategory();
             } else {
                 if (useButtonMode) {
-                    console.warn('GF_ExternalGlossary: 按钮分类模式需要 GF_1_CoreOfSpriteUI，已自动回退到窗口模式');
+                    console.warn('WSQ_ExternalGlossary: 按钮分类模式需要 GF_1_CoreOfSpriteUI，已自动回退到窗口模式');
                 }
                 this._categoryWindow = new Window_GFGlossaryCategory();
             }
@@ -3335,6 +3728,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             $gameSystem._glossaryOpenEntry = 0;
 
             if (allTypes.length === 0) {
+                this._updateGlossaryBackdrop('list');
                 this._helpWindow.setText('没有可用的词典数据。');
                 this._listWindow.hide();
                 this._categoryWindow.hide();
@@ -3352,7 +3746,6 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             }
 
             if (openType > 0 && allTypes.includes(openType)) {
-                this._setBackPicture(openType);
                 this._showGlossaryBrowse(openType, openCategory, openEntry);
             } else {
                 this._showGlossaryList();
@@ -3360,6 +3753,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         }
 
         _showGlossaryList() {
+            this._updateGlossaryBackdrop('list');
+            this._browseFromList = false;
             this._listWindow.refresh();
             this._listWindow.show();
             this._listWindow.activate();
@@ -3378,6 +3773,7 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             if (!glossary) return;
 
             this._currentTypeId = typeId;
+            this._updateGlossaryBackdrop('browse');
 
             if (GlossaryManager.getGlossaryCount() > 1 && !GF.Param.GGMHideListSingleGlossary) {
                 this._listWindow.refresh();
@@ -3475,7 +3871,8 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         onListOk() {
             const typeId = this._listWindow.currentTypeId();
             if (typeId > 0) {
-                this._setBackPicture(typeId);
+                // 标记：本次阅读画面是从词典选择画面点选进入的
+                this._browseFromList = true;
                 this._showGlossaryBrowse(typeId, null, 0);
             }
         }
@@ -3493,12 +3890,73 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             }
         }
 
-        onCategoryCancel() {
-            if (GlossaryManager.getGlossaryCount() > 1) {
-                this._showGlossaryList();
+        /**
+         * 条目阅读画面中的取消处理：
+         * - 从词典选择画面点选进入的（_browseFromList = true）：倒放阅读画面窗口
+         *   动画后退回词典选择画面；
+         * - 插件指令/脚本直接进入的：保持原行为，多词典时退回列表，否则退出场景。
+         */
+        _backFromBrowse() {
+            if (this._browseFromList || GlossaryManager.getGlossaryCount() > 1) {
+                this._switchToGlossaryList();
             } else {
                 this.popScene();
             }
+        }
+
+        /**
+         * 从条目阅读画面退回词典选择画面（场景内状态切换）：
+         * 先倒放阅读画面可见窗口的入场动画（窗口收起），动画播完后经回调切回
+         * 词典选择画面。回调模式仿 Scene_GFGlossaryReading.popScene：
+         * invertInitParamData 倒放 + processInitParamCallBack 挂回调，
+         * 动画时长由各窗口 WindowSet 的移动时间决定。
+         * 按钮组（分类精灵）用 invertCommandMove 倒放（GF_2_CoreOfMainMenu 惯例）。
+         */
+        _switchToGlossaryList() {
+            if (this._stateSwitching) return;
+            const browseWindows = [
+                this._categoryWindow,
+                this._entryWindow,
+                this._contentWindow,
+                this._completeWindow
+            ];
+            let played = false;
+            for (const w of browseWindows) {
+                if (!w || !w.visible) continue;
+                if (typeof w.invertCommandMove === 'function') {
+                    // 精灵按钮组：按钮组专用倒放接口
+                    w.invertCommandMove();
+                    w.deactivate();
+                } else {
+                    w.invertInitParamData();
+                    if (typeof w.deactivate === 'function') w.deactivate();
+                }
+                played = true;
+            }
+            this._helpWindow.setText('');
+            this._stateSwitching = true;
+            this._switchTimer = 0;
+            // 回调挂在条目窗口上（阅读画面必显示的窗口，动画数据必存在）；
+            // 无任何窗口参与动画时直接切换
+            const entry = this._entryWindow;
+            if (played && entry && typeof entry.initParamData === 'function' && entry.initParamData()) {
+                entry.processInitParamCallBack(this._finishSwitchToGlossaryList.bind(this));
+            } else {
+                this._finishSwitchToGlossaryList();
+            }
+        }
+
+        /**
+         * 切换完成：恢复词典选择画面。带状态标记防重入。
+         */
+        _finishSwitchToGlossaryList() {
+            if (!this._stateSwitching) return;
+            this._stateSwitching = false;
+            this._showGlossaryList();
+        }
+
+        onCategoryCancel() {
+            this._backFromBrowse();
         }
 
         onEntryOk() {
@@ -3515,19 +3973,13 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             const useButtonMode = GF.Param.GGMCategoryMode === '按钮';
             if (useButtonMode) {
                 // 按钮模式下，取消直接回到词典列表或退出
-                if (GlossaryManager.getGlossaryCount() > 1) {
-                    this._showGlossaryList();
-                } else {
-                    this.popScene();
-                }
+                this._backFromBrowse();
             } else {
                 const glossary = GlossaryManager.getGlossary(this._currentTypeId);
                 if (glossary && glossary.useCategory && glossary.categories && glossary.categories.length > 0) {
                     this._categoryWindow.activate();
-                } else if (GlossaryManager.getGlossaryCount() > 1) {
-                    this._showGlossaryList();
                 } else {
-                    this.popScene();
+                    this._backFromBrowse();
                 }
             }
         }
@@ -3568,30 +4020,105 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
             }
         }
 
+        /**
+         * 场景退出动画（由 Scene_Base.stop 在 popScene 流程中自动调用）：
+         * 按「菜单退出延迟」参数挂起场景（setPopDelay 使 isBusy 保持 true，
+         * 延迟期间窗口倒放动画正常推进），并倒放当前界面（词典选择/条目阅读）
+         * 可见窗口的入场动画。参照 GF_3_QuestSystem 的 Scene_Quest 同名方法。
+         */
         startAllPartInvert() {
             const delay = GF.Param.GGMPopDelay;
             if (delay === 0) return;
             this.setPopDelay(delay);
             super.startAllPartInvert();
+            this._invertVisibleWindows();
         }
 
-        _setBackPicture(typeId) {
-            if (this._backPictureSprite) {
-                this.removeChild(this._backPictureSprite);
-                this._backPictureSprite = null;
+        /**
+         * 倒放当前可见窗口/按钮组的动画：
+         * - 窗口：invertInitParamData（倒放移动/透明度，时长由窗口 WindowSet 决定）；
+         * - 精灵按钮组（按钮模式下的词典列表/分类）：invertCommandMove + deactivate。
+         * 仅处理当前 visible 的部分，未显示的窗口不参与。
+         */
+        _invertVisibleWindows() {
+            const windows = [
+                this._listWindow,
+                this._categoryWindow,
+                this._entryWindow,
+                this._contentWindow,
+                this._completeWindow,
+                this._helpWindow
+            ];
+            for (const w of windows) {
+                if (!w || !w.visible) continue;
+                if (typeof w.invertCommandMove === 'function') {
+                    w.invertCommandMove();
+                    w.deactivate();
+                } else {
+                    w.invertInitParamData();
+                    if (typeof w.deactivate === 'function') w.deactivate();
+                }
             }
-            const glossary = GlossaryManager.getGlossary(typeId);
-            if (glossary && glossary.backPicture) {
-                const bitmap = ImageManager.loadPicture(glossary.backPicture);
-                const sprite = new Sprite(bitmap);
-                sprite.x = 0;
-                sprite.y = 0;
-                sprite.opacity = glossary.backPictureOpacity !== undefined ? glossary.backPictureOpacity : 255;
+        }
+
+        update() {
+            super.update();
+            // 阅读画面 → 选择画面切换动画的兜底计时（600 帧 = 10 秒）：
+            // 防止窗口动画回调意外未触发导致卡死在切换状态。
+            if (this._stateSwitching) {
+                this._switchTimer++;
+                if (this._switchTimer >= 600) {
+                    this._finishSwitchToGlossaryList();
+                }
+            }
+        }
+
+        // ---- 背景切换 ----
+        // mode: 'list'   = 词典选择画面（词典列表）
+        //       'browse' = 打开词典后的条目阅读画面（分类/条目/内容界面）
+        // 词典选择画面背景：SelectLayoutFile，留空回退 MainLayoutFile。
+        // 条目阅读画面背景：词典 JSON backPicture（存在时优先，整屏拉伸）＞ BrowseLayoutFile ＞ MainLayoutFile。
+        _updateGlossaryBackdrop(mode) {
+            const glossary = mode === 'browse' && this._currentTypeId ?
+                GlossaryManager.getGlossary(this._currentTypeId) : null;
+            const dictPic = glossary ? String(glossary.backPicture || '') : '';
+            let file = '';
+            let opacity = 255;
+            let stretch = false;
+            if (mode === 'list') {
+                file = GF.Param.GGMSelectLayoutFile || GF.Param.GGMMainLayoutFile;
+            } else if (dictPic) {
+                // 词典数据自带背景：整屏拉伸显示（与旧版 _setBackPicture 行为一致）
+                file = dictPic;
+                stretch = true;
+                opacity = glossary.backPictureOpacity !== undefined ? Number(glossary.backPictureOpacity) : 255;
+                if (!(opacity >= 0 && opacity <= 255)) opacity = 255;
+            } else {
+                file = GF.Param.GGMBrowseLayoutFile || GF.Param.GGMMainLayoutFile;
+            }
+            const key = String(mode) + '|' + file + '|' + opacity + '|' + stretch;
+            if (this._glossaryBackdropKey === key) return;
+            this._glossaryBackdropKey = key;
+            if (this._glossaryBackdrop) {
+                if (this._glossaryBackdrop.parent) {
+                    this._backField.removeChild(this._glossaryBackdrop);
+                }
+                this._glossaryBackdrop = null;
+            }
+            if (!file) return;
+            // 词典自带背景走 img/pictures，通用背景图（file 参数）走 GF 的 img/ 任意目录加载
+            const bitmap = dictPic ? ImageManager.loadPicture(file) : ImageManager.loadCustomBitmap(file);
+            const sprite = new Sprite(bitmap);
+            sprite.x = 0;
+            sprite.y = 0;
+            sprite.opacity = opacity;
+            if (stretch && bitmap && bitmap.width > 0) {
                 sprite.scale.x = Graphics.width / bitmap.width;
                 sprite.scale.y = Graphics.height / bitmap.height;
-                this._backPictureSprite = sprite;
-                this.addChildAt(sprite, 0);
             }
+            this._backField.addChild(sprite);
+            this._backField.children.sort((a, b) => a.zIndex - b.zIndex);
+            this._glossaryBackdrop = sprite;
         }
     }
 
@@ -3637,7 +4164,26 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
     };
 
     Scene_GFGlossaryReading.prototype.createDisplayBackground = function () {
-        // 使用 SceneManager 保存的截图作为背景
+        // 优先使用自定义背景图（参数「背景贴图」，整屏拉伸铺底）；
+        // 未配置时兜底使用原先的当前画面截图，避免黑屏。
+        const backFile = GF.Param.GGMReadingPopupBackFile;
+        if (backFile) {
+            const bitmap = ImageManager.loadCustomBitmap(backFile);
+            const sprite = new Sprite(bitmap);
+            sprite.x = 0;
+            sprite.y = 0;
+            let opacity = GF.Param.GGMReadingPopupBackOpacity;
+            if (!(opacity >= 0 && opacity <= 255)) opacity = 255;
+            sprite.opacity = opacity;
+            if (bitmap && bitmap.width > 0) {
+                sprite.scale.x = Graphics.width / bitmap.width;
+                sprite.scale.y = Graphics.height / bitmap.height;
+            }
+            this.addChild(sprite);
+            this._bgSprite = sprite;
+            return;
+        }
+        // 兜底：使用 SceneManager 保存的截图作为背景
         var bg = SceneManager._backgroundBitmap;
         if (bg) {
             var sprite = new Sprite(bg);
@@ -3689,6 +4235,11 @@ GF.GGM.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
         // 防止弹出动画还没播完就按掉窗口。
         if (this._inputLockFrames > 0) {
             this._inputLockFrames--;
+            return;
+        }
+        // 滚动条拖拽中：跳过关闭判定，防止拖动滚动条时误关弹窗
+        var sb = this._readingWindow && this._readingWindow._scrollBarSprite;
+        if (sb && sb._drill_MSB_isDraging) {
             return;
         }
         // 支持键盘（Enter/Esc）和触摸（点击/右键）关闭

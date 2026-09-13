@@ -1,9 +1,10 @@
 //=============================================================================
-// MoveLikeArcade.js
+// WSQ_MoveLikeArcade.js
 //=============================================================================
 
 var Imported = Imported || {};
-Imported.MoveLikeArcade = true;
+Imported.WSQ_MoveLikeArcade = true;
+Imported.MoveLikeArcade = true; // 兼容别名（旧引用保留）
 
 //=============================================================================
 /*:
@@ -69,7 +70,7 @@ Imported.MoveLikeArcade = true;
 (() => {
     "use strict";
 
-    const parameters = PluginManager.parameters("MoveLikeArcade");
+    const parameters = PluginManager.parameters("WSQ_MoveLikeArcade");
     const verticalSpeedRatio = Number(parameters["verticalSpeedRatio"] || 0.75);
 
     //=========================================================================
