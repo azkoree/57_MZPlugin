@@ -8,13 +8,18 @@ Imported.WSQ_Achievement = true;
 
 var WSQ = WSQ || {};
 WSQ.ACH = WSQ.ACH || {};
-WSQ.ACH.version = 1.10;
+WSQ.ACH.version = 1.15;
 WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
+
+if (!Imported.GF_1_CoreOfSeniorGauge) {
+    console.warn("WSQ_Achievement: 未检测到前置插件 GF_1_CoreOfSeniorGauge（高级参数条核心）。\n" +
+        "「高级参数条」进度模式将自动回退为默认轻量进度条。请确认该插件已启用且位于本插件之前。");
+}
 
 /*:
  * @target MZ
- * @author 五十七
- * @plugindesc [v1.10]        系统 - 成就系统（GF适配版，脱离DM_Common）
+ * @author WSQ
+ * @plugindesc [v1.15]        系统 - 成就系统（GF适配版，脱离DM_Common，支持JSON外部配置）
  * @base GF_0_CoreOfGame
  * @orderAfter GF_0_CoreOfGame
  * @base GF_1_CoreOfSpriteUI
@@ -23,6 +28,8 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @orderAfter GF_1_CoreOfWindowUI
  * @base GF_3_ToastSystem
  * @orderAfter GF_3_ToastSystem
+ * @base GF_1_CoreOfSeniorGauge
+ * @orderAfter GF_1_CoreOfSeniorGauge
  * @url https://afdian.net/a/ganfly
  *
  * @help
@@ -36,8 +43,15 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * - 窗口管线：全部走 GF 的 processInitParam，支持窗口移动动画与皮肤
  * - 列表项美化：第一行可绘制渐变色背景条（长度、左右颜色可调，支持透明）；
  *   整块项目背景与光标样式均可复用窗口核心的样式配置（见「项目背景」「项目光标」参数）
+ * - 奖励颜色：列表项与弹窗中的金币/经验/道具/武器/防具/变量/开关等奖励文字颜色，
+ *   可通过「奖励显示颜色」参数分别调整（公共事件颜色用于弹窗奖励文本）
+ * - 执行脚本：奖励列表中可配置「执行脚本」，达成成就后自动执行自定义脚本；
+ *   脚本项可自定义在成就列表中的显示名与脚本内容
  * - 分类模式：支持窗口分类列表与精灵按钮分类（通过「分类显示模式」参数切换）
  * - 图标样式：成就项支持「小图标」「大图标」两种列表样式（见「成就图标样式」参数组）
+ * - 退出动画：退出成就界面时按「菜单退出延迟」帧数挂起场景，倒放分类窗口与
+ *   列表窗口的入场动画（窗口 invertInitParamData，按钮组 invertCommandMove）；
+ *   延迟为 0 时不播放直接退出
  *
  * 使用步骤：
  * 1. 在「成就分类」参数中配置自定义分类（如：战斗、探索、收集）。
@@ -47,6 +61,36 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * 5. 系统字段自动更新值，自定义字段通过插件指令「增加指定统计值」更新。
  * 6. 更新统计值时会自动检测成就条件，达成时自动发放奖励并提示。
  * 7. 插件指令「打开成就界面」可随时查看成就列表。
+ *
+ * ============================================================================
+ * 执行脚本奖励
+ * ============================================================================
+ * 在「奖励内容」的「执行脚本」列表中可配置多条脚本：
+ *   - 显示名称：成就列表奖励栏中显示的文字（如「获得称号」「开启隐藏剧情」）。
+ *   - 脚本内容：达成成就后自动执行的 JavaScript 代码。
+ * 脚本内可直接访问 RMMZ 全局对象（$gameParty、$gameVariables、$gameSwitches 等），
+ * 也可使用插件传入的两个参数：
+ *   stats —— 当前统计数据对象（键名与成就条件/统计字段一致）；
+ *   rule —— 当前成就规则对象（含 ruleName、rewards 等原始字段）。
+ * 示例：让主角获得 100 点最大生命值
+ *   $gameParty.leader().addParam(0, 100);
+ * 示例：将统计字段 openedChests 清零
+ *   stats.openedChests = 0;
+ *
+ * ============================================================================
+ * JSON 外部配置（可选）
+ * ============================================================================
+ * 开启「启用JSON读取成就配置」参数后，插件会优先从「JSON文件路径」指定的文件读取
+ * 以下四类数据，并覆盖同名插件参数（优先级高于插件参数）：
+ *   1. systemStats        —— 系统统计字段（字符串数组，如 ["battleCount","winCount"]）
+ *   2. statsConfig        —— 自定义统计字段（数组，每项 { "displayName": "开宝箱", "keyName": "openedChests" }）
+ *   3. categoryConfig     —— 成就分类（数组，每项 { "id": "battle", "name": "战斗" }）
+ *   4. achievementConfig  —— 成就规则列表（数组，结构与「成就规则列表」完全一致）
+ *       每条成就规则支持 "hideCondition": true/false，开启后不在成就列表中显示该成就的触发条件/进度。
+ * 奖励对象中的「scripts」数组为执行脚本奖励，每项为 { "displayName": "显示名", "script": "脚本内容" }。
+ * 文件须为合法 JSON，路径相对游戏根目录（index.html 所在目录），默认 dataEx/Achievement.json。
+ * 读取失败（文件不存在 / 非法 JSON / 未启用）时自动回退到插件参数，并在控制台给出警告。
+ * 示例结构见随插件提供的 dataEx/Achievement.json。
  *
  * ============================================================================
  * 成就图标样式（小图标 / 大图标）
@@ -187,6 +231,20 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @text 成就名称
  * @desc 成就规则配置的成就名称
  *
+ * @param enableJson
+ * @text 启用JSON读取成就配置
+ * @type boolean
+ * @on 启用
+ * @off 关闭
+ * @desc 开启后，优先从「JSON文件路径」读取系统统计字段、自定义统计字段、成就分类与成就规则，覆盖同名插件参数；关闭则全部使用插件参数。
+ * @default false
+ *
+ * @param jsonPath
+ * @text JSON文件路径
+ * @type string
+ * @desc 启用JSON读取时的配置文件路径，相对游戏根目录（index.html 所在目录）。默认 dataEx/Achievement.json。
+ * @default dataEx/Achievement.json
+ *
  * @param systemStats
  * @text 系统统计字段
  * @type select[]
@@ -277,6 +335,13 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type struct<Background>
  * @default {"Img":"","Opacity":"192","X":"0","Y":"0"}
  *
+ * @param PopDelay
+ * @text 菜单退出延迟
+ * @type number
+ * @min 0
+ * @desc 退出成就界面时的延迟帧数，用于播放窗口倒放退出动画，为0则不播放。
+ * @default 20
+ *
  * @param categoryWindow
  * @text 分类窗口设置
  * @type struct<ListWindowSet>
@@ -292,8 +357,8 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @param rewardColors
  * @text 奖励显示颜色
  * @type struct<RewardColors>
- * @desc 列表项与弹窗中各类奖励摘要的文字颜色（RMMZ颜色号0-31，0=默认白色）
- * @default {"gold":"6","exp":"6","item":"0","weapon":"0","armor":"0","variable":"0","switch":"0"}
+ * @desc 列表项与弹窗中各类奖励摘要的文字颜色（RMMZ颜色号0-31，0=默认白色）。含金币/经验/道具/武器/防具/变量/开关/脚本；公共事件颜色用于弹窗奖励文本。
+ * @default {"gold":"6","exp":"6","item":"0","weapon":"0","armor":"0","variable":"0","switch":"0","event":"0","script":"0"}
  *
  * @param progressColor
  * @text 进度显示颜色
@@ -489,6 +554,76 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *       填0表示不使用窗口核心样式（保留默认光标）。
  * @default 1
  *
+ * @param progressBarGroup
+ * @text ── 进度条 ──
+ *
+ * @param progressBarEnable
+ * @parent progressBarGroup
+ * @text 进度条启用
+ * @type boolean
+ * @on 启用
+ * @off 关闭
+ * @desc 在成就名称行右侧用图形进度条显示完成度（格式：统计字段名:[进度条] x/x）。
+ *       关闭则退回原来的纯文本进度（如：击杀怪物数: 15/20）。
+ * @default true
+ *
+ * @param progressBarHeight
+ * @parent progressBarGroup
+ * @text 进度条高度
+ * @type number
+ * @min 2
+ * @desc 进度条像素高度，建议 8~12。过大可能挤压名称行文字。
+ * @default 10
+ *
+ * @param progressBarWidthRatio
+ * @parent progressBarGroup
+ * @text 进度条宽度占比
+ * @type number
+ * @min 0.05
+ * @max 1
+ * @decimals 2
+ * @desc 进度条宽度占「名称行右侧可用区域」的比例(0.05~1)，其余留给 x/x 文本；空间不足时自动缩短。
+ * @default 0.35
+ *
+ * @param progressBarFillColor
+ * @parent progressBarGroup
+ * @text 进度条填充色
+ * @desc 已填充部分的颜色。填数字=系统颜色编号(0-31)，填#rrggbb=自定义颜色。
+ * @default 6
+ *
+ * @param progressBarBackColor
+ * @parent progressBarGroup
+ * @text 进度条底色
+ * @desc 未填充底槽颜色。填数字=系统颜色编号(0-31)，填#rrggbb=自定义颜色，建议用深色作底。
+ * @default #333333
+ *
+ * @param progressBarMode
+ * @parent progressBarGroup
+ * @text 进度条模式
+ * @type select
+ * @option 默认进度条
+ * @value default
+ * @option 高级参数条
+ * @value advanced
+ * @desc 选择进度条显示方式。\n①默认进度条：本插件的轻量图形条（格式：统计字段名:[进度条] x/x）。\n②高级参数条：使用 GF_1_CoreOfSeniorGauge 的「完整参数条组合样式」(Sprite_CustomPointGauge)，自带参数数字，启用时会同时关闭本插件的 x/x 文本（避免重复显示）。\n注意：高级参数条需要在 GF_1_CoreOfSeniorGauge 中为该样式配置好「参数条图片」与「参数数字图片」，否则因无图会判定不可用并自动回退到默认进度条。
+ * @default default
+ *
+ * @param progressBarAdvancedStyle
+ * @parent progressBarGroup
+ * @text 高级参数条样式ID
+ * @type number
+ * @min 1
+ * @desc 高级模式下使用的「完整参数条组合样式」ID，对应 GF_1_CoreOfSeniorGauge 插件参数「完整参数条组合样式」中的序号（从1开始）。该样式需同时配置了参数条与参数数字。
+ * @default 1
+ *
+ * @param progressBarAdvancedWidth
+ * @parent progressBarGroup
+ * @text 高级进度条预留宽度
+ * @type number
+ * @min 40
+ * @desc 高级参数条在名称行右侧占用的水平宽度（像素）。宽度不足时名称自动缩短避让；过宽可能挤压描述行或溢出。
+ * @default 180
+ *
  */
 
 /*~struct~StatField:
@@ -573,6 +708,12 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @default false
  * @desc 开启后，达成成就时会重置相关统计值，可以反复达成
  *
+ * @param hideCondition
+ * @text 隐藏条件
+ * @type boolean
+ * @default false
+ * @desc 开启后，不在成就列表中显示该成就的触发条件/进度（不影响条件判定与奖励发放）。适合无法简单量化的趣味成就。
+ *
  */
 
 /*~struct~Condition:
@@ -640,6 +781,26 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @type common_event[]
  * @default []
  * @desc 达成成就后自动执行的公共事件
+ *
+ * @param scripts
+ * @text 执行脚本
+ * @type struct<ScriptReward>[]
+ * @default []
+ * @desc 达成成就后自动执行的脚本。可配置在成就列表中的显示名称与脚本内容。
+ */
+
+/*~struct~ScriptReward:
+ * @param displayName
+ * @text 显示名称
+ * @default 执行脚本
+ * @desc 在成就列表奖励栏中显示的文字，如「获得称号」「开启隐藏剧情」。支持控制字符。
+ *
+ * @param script
+ * @text 脚本内容
+ * @type multiline_string
+ * @default
+ * @desc 达成成就后自动执行的 JavaScript 脚本。脚本内可直接访问全局对象（$gameParty、$gameVariables、$gameSwitches 等），
+ *       以及 stats（当前统计数据对象）和 rule（当前成就规则对象）。
  */
 
 /*~struct~ItemReward:
@@ -776,6 +937,23 @@ WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @min 0
  * @max 31
  * @default 0
+ *
+ * @param event
+ * @text 公共事件颜色
+ * @type number
+ * @min 0
+ * @max 31
+ * @desc 公共事件奖励的文字颜色号（弹窗奖励文本使用）
+ * @default 0
+ *
+ * @param script
+ * @text 脚本颜色
+ * @type number
+ * @min 0
+ * @max 31
+ * @desc 执行脚本奖励的文字颜色号（成就列表与弹窗奖励文本使用）
+ * @default 0
+ *
  *
  */
 
@@ -1142,6 +1320,68 @@ WSQ.ACH.Parameters = PluginManager.parameters(WSQ.ACH.pluginName);
 WSQ.Param = WSQ.Param || {};
 WSQ.Param.ACH = WSQ.ACH.deepParse(WSQ.ACH.Parameters);
 
+// ============================================================================
+// JSON 外部配置读取（可选，启用后覆盖同名插件参数）
+// 在参数 deepParse 之后、prepareAchievements 之前同步加载，确保后续依赖初始化时数据已就绪。
+// ============================================================================
+WSQ.ACH.loadJsonSync = function (path) {
+    try {
+        const xhr = new XMLHttpRequest();
+        // 沿用 RMMZ DataManager 的 file:// 读取范式 + 时间戳防缓存
+        const url = path + (path.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+        xhr.open('GET', url, false); // 同步读取，保证加载期即可使用
+        xhr.overrideMimeType('application/json');
+        xhr.send();
+        if (xhr.responseText && (xhr.status === 0 || xhr.status < 400)) {
+            return WSQ.ACH.safeJSONParse(xhr.responseText);
+        }
+    } catch (e) {
+        console.warn('[WSQ_Achievement] JSON 读取异常：', e);
+    }
+    return null;
+};
+
+// 用 JSON 数据覆盖插件参数中的四类配置；返回是否成功应用
+WSQ.ACH.applyJsonData = function () {
+    if (!WSQ.Param.ACH.enableJson) return false;
+    const path = (WSQ.Param.ACH.jsonPath || 'dataEx/Achievement.json').trim();
+    const data = WSQ.ACH.loadJsonSync(path);
+    if (!data || typeof data !== 'object') {
+        console.warn('[WSQ_Achievement] 已启用 JSON 读取但文件为空或解析失败，已回退插件参数：' + path);
+        return false;
+    }
+    // 系统统计字段：支持数组或对象两种写法，统一规整为数组（prepareAchievements 会再转成映射）
+    if (data.systemStats != null) {
+        if (Array.isArray(data.systemStats)) {
+            WSQ.Param.ACH.systemStats = data.systemStats.slice();
+        } else if (typeof data.systemStats === 'object') {
+            WSQ.Param.ACH.systemStats = Object.keys(data.systemStats);
+        } else {
+            WSQ.Param.ACH.systemStats = [];
+        }
+    }
+    // 自定义统计字段
+    if (Array.isArray(data.statsConfig)) {
+        WSQ.Param.ACH.statsConfig = data.statsConfig.slice();
+    }
+    // 成就分类
+    if (Array.isArray(data.categoryConfig)) {
+        WSQ.Param.ACH.categoryConfig = data.categoryConfig.slice();
+    }
+    // 成就规则列表
+    if (Array.isArray(data.achievementConfig)) {
+        WSQ.Param.ACH.achievementConfig = data.achievementConfig.slice();
+    }
+    console.log('[WSQ_Achievement] 已从 JSON 读取成就配置：' + path +
+        '（systemStats=' + (WSQ.Param.ACH.systemStats || []).length +
+        ', statsConfig=' + (WSQ.Param.ACH.statsConfig || []).length +
+        ', categories=' + (WSQ.Param.ACH.categoryConfig || []).length +
+        ', achievements=' + (WSQ.Param.ACH.achievementConfig || []).length + '）');
+    return true;
+};
+
+try { WSQ.ACH.applyJsonData(); } catch (e) { console.warn('[WSQ_Achievement] JSON 配置应用失败，已回退插件参数：', e); }
+
 // 将窗口参数转换为 GF 兼容的 WindowSet
 WSQ.ACH.setupWindowParam = function (raw) {
     if (!Imported.GF_1_CoreOfWindowUI) return null;
@@ -1162,6 +1402,12 @@ WSQ.ACH.setupWindowParam = function (raw) {
 
 WSQ.Param.ACH.categoryWindow.WindowSet = WSQ.ACH.setupWindowParam(WSQ.Param.ACH.categoryWindow);
 WSQ.Param.ACH.listWindow.WindowSet = WSQ.ACH.setupWindowParam(WSQ.Param.ACH.listWindow);
+
+// 菜单退出延迟（帧）：非法值回退 20
+WSQ.Param.ACH.PopDelay = (() => {
+    const n = Number(WSQ.Param.ACH.PopDelay);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 20;
+})();
 
 // 系统统计字段显示名（用于条件展示）
 WSQ.ACH.systemStatDisplayNames = {
@@ -1308,6 +1554,13 @@ WSQ.ACH.prepareAchievements = function () {
                 catch (e) { item.valueFunc = () => 1; }
             });
         });
+        // 执行脚本奖励：new Function 编译脚本内容（参数：stats 统计、rule 当前成就规则）
+        const scriptRewards = Array.isArray(r.scripts) ? r.scripts : [];
+        scriptRewards.forEach(script => {
+            if (!script || typeof script !== "object") return;
+            try { script.scriptFunc = new Function("stats", "rule", String(script.script || "")); }
+            catch (e) { script.scriptFunc = () => {}; console.warn("[WSQ_Achievement] 脚本奖励编译失败：" + (script.displayName || "未命名脚本"), e); }
+        });
         // 3. 构建依赖图
         condArray.forEach(cond => {
             const key = cond.id;
@@ -1320,15 +1573,18 @@ WSQ.ACH.prepareAchievements = function () {
 
 WSQ.ACH.ruleDependencyGraph = WSQ.ACH.prepareAchievements();
 
+// 读取某类奖励文字的颜色号（0-31），非法时回退默认值
+WSQ.ACH.rewardColorNum = function (key, def) {
+    const colors = WSQ.Param.ACH.rewardColors || {};
+    const v = Number(colors[key]);
+    return Number.isFinite(v) ? v : def;
+};
+
 // 生成奖励摘要字符串（用于列表项第二行右对齐显示）
 WSQ.ACH.buildRewardSummary = function (rule, stats) {
     const parts = [];
     const r = rule.rewards || {};
-    const colors = WSQ.Param.ACH.rewardColors || {};
-    const c = (key, def) => {
-        const v = Number(colors[key]);
-        return Number.isFinite(v) ? v : def;
-    };
+    const c = WSQ.ACH.rewardColorNum;
     const gold = r.goldFunc ? r.goldFunc(stats) : 0;
     if (gold > 0) parts.push(`\\C[${c("gold", 6)}]金币+${gold}\\C[0]`);
     const exp = r.expFunc ? r.expFunc(stats) : 0;
@@ -1361,24 +1617,31 @@ WSQ.ACH.buildRewardSummary = function (rule, stats) {
             parts.push(`\\C[${c("switch", 0)}]${name}:${it.value ? "开" : "关"}\\C[0]`);
         }
     });
+    (Array.isArray(r.scripts) ? r.scripts : []).forEach(it => {
+        if (!it || typeof it !== "object") return;
+        const name = it.displayName || "执行脚本";
+        if (name) parts.push(`\\C[${c("script", 0)}]${name}\\C[0]`);
+    });
     return parts.join("  ·  ");
 };
 
-// 生成成就进度文本（单条件显示 current/target，多条件显示 已满足数/总数）
-WSQ.ACH.buildProgressText = function (rule, stats) {
+// 生成成就进度信息（用于绘制进度条 + x/x 文本）
+// 返回 { label, value, rate } 或 null（无条件时）。
+// label：单条件且开启「显示统计字段名」时形如 "击杀怪物数: "（含冒号与尾部空格）；
+//        多条件成就无单一字段名，label 为空。value：x/x 形式文本。rate：0~1 完成度。
+WSQ.ACH.buildProgressInfo = function (rule, stats) {
     const conds = rule.condition || [];
-    if (conds.length === 0) return "";
+    if (conds.length === 0) return null;
     const showLabel = WSQ.Param.ACH.showProgressLabel;
     if (conds.length === 1) {
         const cond = conds[0];
         const current = stats[cond.id] || 0;
         const target = Number(cond.value) || 0;
-        const progress = `${current}/${target}`;
-        if (showLabel) {
-            const label = WSQ.ACH.getStatDisplayName(cond.id);
-            return `${label}: ${progress}`;
-        }
-        return progress;
+        const rate = target > 0 ? Math.min(1, Math.max(0, current / target))
+                               : (current > 0 ? 1 : 0);
+        const value = `${current}/${target}`;
+        const label = showLabel ? WSQ.ACH.getStatDisplayName(cond.id) + ": " : "";
+        return { label: label, value: value, rate: rate, cur: current, max: target };
     }
     const met = conds.filter(cond => {
         const current = stats[cond.id] || 0;
@@ -1392,8 +1655,27 @@ WSQ.ACH.buildProgressText = function (rule, stats) {
             default: return current >= target;
         }
     }).length;
-    return `${met}/${conds.length}`;
+    const rate = conds.length > 0 ? Math.min(1, met / conds.length) : 0;
+    return { label: "", value: `${met}/${conds.length}`, rate: rate, cur: met, max: conds.length };
 };
+
+// 高级参数条组合样式的封装（基于 GF_1_CoreOfSeniorGauge 的 Sprite_CustomPointGauge）。
+// 重写 getNumberData，强制开启「额定值显示」，使参数数字以 当前/上限 形式呈现（如 15/20），
+// 这样启用高级条时即可关闭本插件的 x/x 文本而数字不丢失。
+if (typeof Sprite_CustomPointGauge !== 'undefined') {
+    class WSQ_AchGaugeSprite extends Sprite_CustomPointGauge {
+        getNumberData(style_data) {
+            const base = JsonEx.makeDeepCopy(GF.COSG.GaugeNumberSetList[style_data['number_id']] || {});
+            base['specified_enable'] = true;   // 启用额定值
+            base['specified_visible'] = true;  // 显示额定值（即上限），呈现 当前/上限
+            base['x'] = style_data['number_x'];
+            base['y'] = style_data['number_y'];
+            base['visible'] = style_data['number_enable'];
+            return base;
+        }
+    }
+    WSQ.ACH.AchGaugeSprite = WSQ_AchGaugeSprite;
+}
 
 // ============================================================================
 // Game_System 扩展
@@ -1481,7 +1763,7 @@ WSQ.ACH.notice = function (descriptions, name, desc) {
         AudioManager.playSe({ name: sound, volume: 100, pitch: 100, pan: 0 });
     }
     if (WSQ.Param.ACH.showPopup) {
-        let msg = `\\C[6]成就解锁：${name}\\C[0]`;
+        let msg = `\\C[36]成就解锁：${name}\\C[0]`;
         if (desc) msg += `\n${desc}`;
         if (descriptions.length > 0 && WSQ.Param.ACH.popupRewards) {
             msg += `\n奖励：\n` + descriptions.map(item => `  ${item}`).join("\n");
@@ -1494,6 +1776,8 @@ WSQ.ACH.notice = function (descriptions, name, desc) {
 Game_System.prototype._grantAchievementRewards = function (rule, stats) {
     const rewards = rule.rewards || {};
     const descriptions = [];
+    const c = WSQ.ACH.rewardColorNum;
+    const colorText = (text, colorKey, def) => `\\C[${c(colorKey, def)}]${text}\\C[0]`;
     // 金币
     const gold = rewards.goldFunc ? rewards.goldFunc(stats) : 0;
     if (gold > 0) {
@@ -1502,13 +1786,13 @@ Game_System.prototype._grantAchievementRewards = function (rule, stats) {
         if (Imported.GF_0_CoreOfGame && GF.Param.COGGoldSet) {
             desc = `\\I[${GF.Param.COGGoldSet.GoldIcon}]` + desc;
         }
-        descriptions.push(`${desc} +${gold}`);
+        descriptions.push(colorText(`${desc} +${gold}`, "gold", 6));
     }
     // 经验
     const exp = rewards.expFunc ? rewards.expFunc(stats) : 0;
     if (exp > 0) {
         $gameParty.battleMembers().forEach(m => m.gainExp(exp));
-        descriptions.push(`${TextManager.exp} +${exp}`);
+        descriptions.push(colorText(`${TextManager.exp} +${exp}`, "exp", 6));
     }
     // 道具
     (rewards.items || []).forEach(it => {
@@ -1517,7 +1801,7 @@ Game_System.prototype._grantAchievementRewards = function (rule, stats) {
         if (id > 0 && val > 0 && item) {
             $gameParty.gainItem(item, val);
             let desc = (Imported.GF_0_CoreOfGame) ? `\\Item[${id}]` : `\\I[${item.iconIndex}]${item.name}`;
-            descriptions.push(`${desc} ×${val}`);
+            descriptions.push(colorText(`${desc} ×${val}`, "item", 0));
         }
     });
     // 武器
@@ -1527,7 +1811,7 @@ Game_System.prototype._grantAchievementRewards = function (rule, stats) {
         if (id > 0 && val > 0 && item) {
             $gameParty.gainItem(item, val);
             let desc = (Imported.GF_0_CoreOfGame) ? `\\Weapon[${id}]` : `\\I[${item.iconIndex}]${item.name}`;
-            descriptions.push(`${desc} ×${val}`);
+            descriptions.push(colorText(`${desc} ×${val}`, "weapon", 0));
         }
     });
     // 防具
@@ -1537,7 +1821,7 @@ Game_System.prototype._grantAchievementRewards = function (rule, stats) {
         if (id > 0 && val > 0 && item) {
             $gameParty.gainItem(item, val);
             let desc = (Imported.GF_0_CoreOfGame) ? `\\Armor[${id}]` : `\\I[${item.iconIndex}]${item.name}`;
-            descriptions.push(`${desc} ×${val}`);
+            descriptions.push(colorText(`${desc} ×${val}`, "armor", 0));
         }
     });
     // 变量
@@ -1547,7 +1831,7 @@ Game_System.prototype._grantAchievementRewards = function (rule, stats) {
             const old = $gameVariables.value(id);
             $gameVariables.setValue(id, old + val);
             const varName = $dataSystem.variables[id] || `变量${id}`;
-            descriptions.push(`${varName} ${val >= 0 ? "+" : ""}${val}`);
+            descriptions.push(colorText(`${varName} ${val >= 0 ? "+" : ""}${val}`, "variable", 0));
         }
     });
     // 开关
@@ -1555,7 +1839,7 @@ Game_System.prototype._grantAchievementRewards = function (rule, stats) {
         if (it.id > 0) {
             $gameSwitches.setValue(it.id, it.value);
             const swName = $dataSystem.switches[it.id] || `开关${it.id}`;
-            descriptions.push(`${swName} ${it.value ? "开启" : "关闭"}`);
+            descriptions.push(colorText(`${swName} ${it.value ? "开启" : "关闭"}`, "switch", 0));
         }
     });
     // 公共事件
@@ -1565,8 +1849,18 @@ Game_System.prototype._grantAchievementRewards = function (rule, stats) {
             $gameTemp.reserveCommonEvent(id);
             const ce = $dataCommonEvents[id];
             const ceName = ce ? ce.name : `公共事件${id}`;
-            descriptions.push(`执行：${ceName}`);
+            descriptions.push(colorText(`执行：${ceName}`, "event", 0));
         }
+    });
+    // 执行脚本
+    (Array.isArray(rewards.scripts) ? rewards.scripts : []).forEach(it => {
+        if (!it || typeof it !== "object") return;
+        if (it.scriptFunc) {
+            try { it.scriptFunc(stats, rule); }
+            catch (e) { console.warn("[WSQ_Achievement] 成就脚本执行失败：" + (it.displayName || "未命名脚本"), e); }
+        }
+        const name = it.displayName || "执行脚本";
+        descriptions.push(colorText(name, "script", 0));
     });
     return descriptions;
 };
@@ -1979,6 +2273,32 @@ class Scene_Achievement extends Scene_MenuBase {
         // 列表项确认：保持激活，便于浏览（无详情窗口）
         this._listWindow.activate();
     }
+
+    /**
+     * 场景退出动画（由 GF_0_CoreOfGame 的 Scene_Base.stop 在 popScene 流程中
+     * 自动调用）：按「菜单退出延迟」参数挂起场景（setPopDelay 使 isBusy 保持
+     * true，延迟期间窗口动画照常推进），并倒放分类控件与列表窗口的入场动画。
+     * 参照 GF_3_QuestSystem 的 Scene_Quest 同名方法：
+     * - 窗口（分类窗口/列表窗口）：invertInitParamData；
+     * - 精灵按钮组（按钮模式分类）：invertCommandMove + deactivate。
+     */
+    startAllPartInvert() {
+        const delay = WSQ.Param.ACH.PopDelay;
+        if (delay === 0) return;
+        this.setPopDelay(delay);
+        super.startAllPartInvert();
+        const widgets = [this._categoryWidget, this._listWindow];
+        for (const w of widgets) {
+            if (!w || !w.visible) continue;
+            if (typeof w.invertCommandMove === 'function') {
+                w.invertCommandMove();
+                w.deactivate();
+            } else {
+                w.invertInitParamData();
+                if (typeof w.deactivate === 'function') w.deactivate();
+            }
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -2084,6 +2404,16 @@ class Window_AchievementList extends Window_Selectable {
     // 这里在图片加载完成后触发一次刷新，确保背景正常显示。
     update() {
         super.update();
+        if (this._progressGaugeSprites) {
+            for (const k in this._progressGaugeSprites) {
+                const s = this._progressGaugeSprites[k];
+                if (s) {
+                    s.opacity = this.contentsOpacity;
+                    // 图片加载完成后宽度已知，重新贴右对齐
+                    if (s._achRightEdge !== undefined) this._repositionGauge(s);
+                }
+            }
+        }
         if (this._achSelectBackRedrawn) return;
         const bitmap = this._selectBackBitmap;
         if (bitmap && bitmap.isReady()) {
@@ -2139,6 +2469,7 @@ class Window_AchievementList extends Window_Selectable {
     }
 
     refresh() {
+        this._disposeProgressGauges();
         this.makeItemList();
         // 清空背景层，避免列表变化/滚动后残留旧的渐变背景
         if (this.contentsBack) this.contentsBack.clear();
@@ -2156,6 +2487,118 @@ class Window_AchievementList extends Window_Selectable {
         const colorR = WSQ.ACH.resolveColor(WSQ.Param.ACH.itemRowBarColorR);
         this.contentsBack.clearRect(x, y, width, height);
         this.contentsBack.gradientFillNormalRect(x, y, barW, height, colorL, colorR);
+    }
+
+    // 绘制完成度进度条（前景层 contents 上直接画矩形，无需依赖 Window_StatusBase.drawGauge）
+    // x/y/w/h 为 contents 坐标系；rate 0~1；fillColor 为已填充色，backColor 为底槽色（支持 #rrggbb / 系统色号）。
+    drawProgressBar(x, y, w, h, rate, fillColor, backColor) {
+        if (w <= 0 || h <= 0) return;
+        rate = Math.min(1, Math.max(0, rate));
+        if (backColor) this.contents.fillRect(x, y, w, h, backColor);
+        const fw = Math.floor(w * rate);
+        if (fw > 0 && fillColor) {
+            this.contents.fillRect(x, y, fw, h, fillColor);
+        }
+    }
+
+    // 高级参数条组合：释放所有已创建的 Sprite（避免内存泄漏与残留）
+    _disposeProgressGauges() {
+        if (!this._progressGaugeSprites) { this._progressGaugeSprites = {}; return; }
+        for (const k in this._progressGaugeSprites) {
+            const s = this._progressGaugeSprites[k];
+            if (s && s.parent) s.parent.removeChild(s);
+        }
+        this._progressGaugeSprites = {};
+    }
+
+    // 高级参数条模式是否真正可用（依赖存在 + 所选样式已配置条图与数字图）
+    _advancedModeActive() {
+        if (WSQ.Param.ACH.progressBarMode !== 'advanced') return false;
+        if (typeof Sprite_CustomPointGauge === 'undefined' || !GF || !GF.COSG) return false;
+        const styleId = Math.floor(Number(WSQ.Param.ACH.progressBarAdvancedStyle) || 1);
+        return this._advancedStyleAvailable(styleId);
+    }
+
+    _advancedStyleAvailable(styleId) {
+        const base = GF.COSG.GaugeSetList[styleId];
+        if (!base) return false;
+        if (!base['meter_enable'] && !base['number_enable']) return false;
+        const meter = GF.COSG.GaugeMeterSetList[base['meter_id']];
+        const num = GF.COSG.GaugeNumberSetList[base['number_id']];
+        const meterOk = !!(meter && (meter['meter_src'] || '') !== '');
+        const numOk = !!(num && (num['symbol_src'] || '') !== '');
+        // 条与数字都必须有图片，否则呈现不完整，判定不可用并回退默认条
+        return meterOk && numOk;
+    }
+
+    _getAdvancedStyleData(styleId) {
+        const base = GF.COSG.GaugeSetList[styleId];
+        if (!base) return null;
+        const data = JsonEx.makeDeepCopy(base);
+        if (data['x'] === undefined) data['x'] = 0;
+        if (data['y'] === undefined) data['y'] = 0;
+        return data;
+    }
+
+    // 创建/更新某个列表项的高级参数条（右对齐放置在第一行）
+    _ensureProgressGauge(index, cur, max, rect, textY, lh) {
+        if (!this._progressGaugeSprites) this._progressGaugeSprites = {};
+        const styleId = Math.floor(Number(WSQ.Param.ACH.progressBarAdvancedStyle) || 1);
+        let sprite = this._progressGaugeSprites[index];
+        if (!sprite) {
+            if (typeof WSQ.ACH.AchGaugeSprite === 'undefined') return;
+            const styleData = this._getAdvancedStyleData(styleId);
+            if (!styleData) return;
+            sprite = new WSQ.ACH.AchGaugeSprite(styleData, null, cur, max, '');
+            this._progressGaugeSprites[index] = sprite;
+            this.addInnerChild(sprite);   // 加入窗口的 clientArea，与 contents 同坐标系
+        }
+        const reserveW = Math.max(40, Number(WSQ.Param.ACH.progressBarAdvancedWidth) || 180);
+        // 记录锚点，供 update() 在图片加载完成后按真实宽度重新贴右对齐
+        sprite._achRightEdge = rect.x + rect.width;
+        sprite._achTextY = textY;
+        sprite._achLineH = lh;
+        sprite._achReserveW = reserveW;
+        this._repositionGauge(sprite);
+        sprite.setCustom(cur, max, '');
+        sprite.opacity = this.contentsOpacity;
+    }
+
+    // 把高级条贴到名称行右侧。
+    // 关键坑：GF 参数条的数字带「弹性滚动」追逐动画，滚动过程中位数变化会使
+    // 容器包围盒宽度每帧变动；若每帧按实时宽度重贴右对齐，条就会左右抽搐。
+    // 因此采用「锁定」策略：未锁定时用固定预留宽度定位（不随数字滚动抖），
+    // 待宽度连续若干帧稳定（动画结束）后锁定最终宽度，此后不再每帧重定位。
+    _repositionGauge(sprite) {
+        if (sprite._achLocked) return;
+        const reserveW = sprite._achReserveW || 180;
+        const w = (sprite.width && sprite.width > 0) ? sprite.width : 0;
+        let gw = reserveW;
+        if (w > 0) {
+            if (sprite._achLastW === w) {
+                sprite._achStable = (sprite._achStable || 0) + 1;
+            } else {
+                sprite._achLastW = w;
+                sprite._achStable = 1;
+            }
+            if (sprite._achStable >= 3) {
+                sprite._achLockedW = w;     // 连续 3 帧宽度一致 → 锁定最终稳定宽度
+                sprite._achLocked = true;
+                gw = w;
+            }
+        }
+        const gx = sprite._achRightEdge - gw - 4;
+        const gy = sprite._achTextY + Math.floor((sprite._achLineH - 24) / 2);
+        sprite.move(gx, gy);
+    }
+
+    _removeProgressGauge(index) {
+        if (!this._progressGaugeSprites) return;
+        const s = this._progressGaugeSprites[index];
+        if (s) {
+            if (s.parent) s.parent.removeChild(s);
+            delete this._progressGaugeSprites[index];
+        }
     }
 
     // 绘制大图标：优先用成就配置的图片，没有图片时按参数回退为放大的图标集图标
@@ -2245,7 +2688,7 @@ class Window_AchievementList extends Window_Selectable {
         // 第一行渐变背景（名称行的底色）
         this._drawItemRowBar(barX, textY, barW, lh);
 
-        // 第一行：图标（仅小图标样式）+ 名称（左）+ 进度/已完成（右对齐）
+        // 第一行：图标（仅小图标样式）+ 名称（左）+ 进度(进度条 + x/x) / 已完成（右对齐）
         let nameX = textX;
         let nameAvailW = textW;
         if (!bigStyle) {
@@ -2260,22 +2703,71 @@ class Window_AchievementList extends Window_Selectable {
             }
         }
         const name = String(rule.achievementName || rule.ruleName || "");
-        // 进度文本：达成显示"已完成！"，否则显示 current/target
         const statsForProgress = $gameSystem._achievementStats;
-        let progressText = "";
+        // 隐藏条件：开启后不显示触发条件/进度（不影响判定与奖励，完成后仍显示「已完成！」状态）
+        const hideCondition = rule.hideCondition === true;
+
+        // 计算进度信息（label / value / 完成度 / 真实上下限 cur/max）
+        const progressInfo = hideCondition ? null : WSQ.ACH.buildProgressInfo(rule, statsForProgress);
         let progressColorNum = 0;
+        let labelText = "";
+        let valueText = "";
+        let rate = 0;
+        let cur = 1;
+        let max = 1;
         if (granted) {
-            progressText = "已完成！";
             progressColorNum = Number(WSQ.Param.ACH.completedColor);
             if (!Number.isFinite(progressColorNum)) progressColorNum = 3;
-        } else {
-            progressText = WSQ.ACH.buildProgressText(rule, statsForProgress);
+            valueText = "已完成！";
+            rate = 1;
+            // 已达成：让高级参数条也显示为满（如 20/20、3/3）；无条件的成就按 1/1
+            if (progressInfo && progressInfo.max > 0) { cur = progressInfo.max; max = progressInfo.max; }
+        } else if (progressInfo) {
             progressColorNum = Number(WSQ.Param.ACH.progressColor);
             if (!Number.isFinite(progressColorNum)) progressColorNum = 0;
+            labelText = progressInfo.label;
+            valueText = progressInfo.value;
+            rate = progressInfo.rate;
+            cur = progressInfo.cur;
+            max = Math.max(1, progressInfo.max || 1);
         }
-        const progressFullText = progressText ? `\\C[${progressColorNum}]${progressText}\\C[0]` : "";
-        const progressW = progressFullText ? this.textWidthEx(progressFullText) + 16 : 0;
-        const nameW = Math.max(nameAvailW - progressW, 1);
+
+        // 是否启用高级参数条组合样式（依赖缺失或所选样式无图时自动判定不可用，回退默认条）
+        // 隐藏条件时强制关闭高级参数条，避免把当前/目标数值泄露出来
+        const advancedActive = !hideCondition && this._advancedModeActive();
+
+        // 文本进度块的度量（仅默认/回退模式使用）；隐藏条件时同时关闭图形进度条
+        const barEnable = WSQ.Param.ACH.progressBarEnable !== false && !hideCondition;
+        const gap = 6;
+        const coloredLabel = labelText ? `\\C[${progressColorNum}]${labelText}\\C[0]` : "";
+        const coloredValue = valueText ? `\\C[${progressColorNum}]${valueText}\\C[0]` : "";
+        const labelW = labelText ? this.textWidthEx(coloredLabel) : 0;
+        const valueW = valueText ? this.textWidthEx(coloredValue) : 0;
+        const gapLabel = labelW > 0 ? gap : 0;
+        let pbarW = 0;
+        let useBar = false;
+        if (!advancedActive && barEnable && (labelW + valueW) > 0) {
+            const regionW = nameAvailW;
+            const ratio = Math.min(1, Math.max(0.05, WSQ.ACH.numParam('progressBarWidthRatio', 0.35)));
+            pbarW = regionW - labelW - valueW - gapLabel - gap;
+            if (pbarW >= 6) {
+                const maxBar = Math.floor(regionW * ratio);
+                if (pbarW > maxBar) pbarW = maxBar;
+                useBar = true;
+            }
+        }
+
+        // 名称宽度：高级模式扣「统计字段名 + 预留条宽」；默认模式扣文本进度块宽
+        let nameW;
+        if (advancedActive) {
+            const reserveW = Math.max(40, Number(WSQ.Param.ACH.progressBarAdvancedWidth) || 180);
+            const advLabelW = labelW + gapLabel;   // 高级模式同样保留统计字段名文本
+            nameW = Math.max(nameAvailW - advLabelW - reserveW, 1);
+        } else {
+            const compositeW = (useBar ? (labelW + gapLabel + pbarW + gap + valueW) : (labelW + valueW));
+            nameW = Math.max(nameAvailW - compositeW, 1);
+        }
+        const blockX = nameX + nameW;   // 进度区左边缘（整体右对齐）
 
         this.changePaintOpacity(granted);
         this.resetTextColor();
@@ -2287,11 +2779,41 @@ class Window_AchievementList extends Window_Selectable {
         }
         this.drawTextEx(name, nameX, textY, nameW);
         this.changePaintOpacity(true);
-        // 进度右对齐：区域起点 = nameX + nameW，宽度 = progressW
-        if (progressFullText) {
-            this.changePaintOpacity(true);
-            this.resetTextColor();
-            this.drawTextEx(progressFullText, nameX + nameW, textY, progressW, "right");
+
+        // 进度区渲染：
+        //   高级模式 → 用 GF 完整参数条组合（自带数字，关闭本插件 x/x 文本）；
+        //   默认/回退模式 → 文本进度块（标签 + 默认进度条 + x/x）
+        if (advancedActive) {
+            // 高级模式：GF 完整参数条自带 x/x 数字，故不画 valueText；
+            // 但保留统计字段名文本（画在名称与参数条之间）
+            if (labelW > 0) {
+                this.resetTextColor();
+                this.drawTextEx(coloredLabel, blockX, textY, labelW, "left");
+            }
+            this._ensureProgressGauge(index, cur, max, rect, textY, lh);
+        } else {
+            this._removeProgressGauge(index);
+            if (labelW + valueW + pbarW > 0) {
+                this.resetTextColor();
+                let cx = blockX;
+                if (labelW > 0) {
+                    this.drawTextEx(coloredLabel, cx, textY, labelW, "left");
+                    cx += labelW + gapLabel;
+                }
+                if (useBar && pbarW > 0) {
+                    const barH = Math.max(2, Math.floor(WSQ.ACH.numParam('progressBarHeight', 10)));
+                    const barY = textY + Math.floor((lh - barH) / 2);
+                    const fillColor = granted
+                        ? WSQ.ACH.resolveColor(WSQ.Param.ACH.completedColor)
+                        : WSQ.ACH.resolveColor(WSQ.Param.ACH.progressBarFillColor);
+                    const backColor = WSQ.ACH.resolveColor(WSQ.Param.ACH.progressBarBackColor);
+                    this.drawProgressBar(cx, barY, pbarW, barH, rate, fillColor, backColor);
+                    cx += pbarW + gap;
+                }
+                if (valueW > 0) {
+                    this.drawTextEx(coloredValue, cx, textY, valueW, "left");
+                }
+            }
         }
 
         // 第二行：描述（左）+ 奖励摘要（右对齐）
