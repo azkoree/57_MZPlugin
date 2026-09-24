@@ -7,13 +7,13 @@ Imported.WSQ_EventInteractEX = true;
 
 var WSQ = WSQ || {};
 WSQ.EIX = WSQ.EIX || {};
-WSQ.EIX.version = 1.32;
+WSQ.EIX.version = 1.34;
 WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 /*:
  * @target MZ
  * @author WSQ
- * @plugindesc [v1.32]        事件 - 事件互动扩展（EAGLE-RGSS3 移植，支持鼠标操作）
+ * @plugindesc [v1.34]        事件 - 事件互动扩展（EAGLE-RGSS3 移植，支持鼠标操作）
  *
  * @help
  * ============================================================================
@@ -29,6 +29,13 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  *     （v1.23 起），不会走到事件脸上触发未经筛选的事件流程。
  *   - 鼠标滚轮上下滚动：循环切换当前选中的互动。
  *   - 左键点击互动窗口任意位置：执行光标选中的互动（v1.20 起）。
+ *   - 鼠标悬停（v1.33 起）：鼠标悬停在带互动标签的事件贴图上时，自动弹出互动
+ *     列表（判定同 GF_4_EventInfoWindow 的贴图框架命中，无需玩家进入触发范围）；
+ *     移开鼠标列表消失，滚轮 / 点击列表交互不变，悬停时键盘确定键同样可执行。
+ *   - 悬停后点击列表确认（v1.33 起）：玩家尚未进入该事件触发范围时，列表收起、
+ *     角色自动走向事件（复用引擎触摸移动），进入触发范围即面向事件执行所选互动；
+ *     途中被不可通行元素阻挡且 MZ 原版寻路（findDirectionTo）无路可走时，自动
+ *     取消待执行互动并停在原地，不会卡死。玩家按方向键或重新点击地图会取消待执行。
  *   键盘与鼠标操作可混用（如滚轮选择后按确定键执行）。
  *
  * 与默认行为的关系：
@@ -58,6 +65,18 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * - v1.32：新增「预设互动列表」参数（presets）与【预设: xxx】注释引用——预设可在
  *   参数中集中维护，事件首条注释只需写一行引用即可展开为一串互动（详见「备注」第 2 条），
  *   避免注释过长影响与其他插件共用第一行。
+ * - v1.33：新增「悬停显示互动列表」（hoverEnabled）——鼠标悬停在带互动标签的事件
+ *   贴图上时自动弹出互动列表（判定参考 GF_4_EventInfoWindow 的 texture.frame +
+ *   锚点矩形方案，改用 worldTransform 逆变换，兼容镜头位移/缩放，无需玩家进入触发
+ *   范围）；悬停优先于邻近扫描。点击列表确认时若玩家不在触发范围内，收起列表并记录
+ *   待执行互动（pending），复用引擎触摸移动自动走向事件，进入触发范围即面向事件执行；
+ *   被阻挡时用 MZ 原版寻路 findDirectionTo 探测，无路可走自动取消，不会卡死。
+ * - v1.34：修复「窗口背景样式 = 1（窗口皮肤）」模式下只画边框、不画窗体背景的问题——
+ *   原实现仅按右上 96×96 切边框 + 内部纯色 fillRect 兜底，未绘制左上 96×96 窗体本体
+ *   （默认 Window.png 该区域就是深色窗体），导致选中皮肤风格时看上去「只有边框没
+ *   有背景」。现按引擎 Window._refreshBack / _refreshFrame 同款双层结构补齐：
+ *   左上 96×96 九宫格画窗体 + 右上 96×96 八片画边框（margin=24），并保留纯色兜底
+ *   以兼容左上为透明的自定义皮肤。
  *
  * ============================================================================
  * 备注（notetag）
@@ -350,6 +369,14 @@ WSQ.EIX.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
  * @off 关闭
  * @default true
  *
+ * @param hoverEnabled
+ * @text 悬停显示互动列表
+ * @desc 鼠标悬停在带互动标签的事件贴图上时，自动弹出互动列表（无需玩家进入触发范围），移开鼠标列表消失；悬停后点击列表确认，玩家会自动走过去再执行。
+ * @type boolean
+ * @on 开启
+ * @off 关闭
+ * @default true
+ *
  * @param clickOpenMenu
  * @text 点击事件打开菜单
  * @desc 鼠标点击带互动标签的事件格时，直接打开互动列表且角色不移动；仅当玩家已进入该事件的触发范围时生效，范围外点击则自动走过去，一进入触发范围即停下并弹出互动列表（0 - 关闭；1 - 开启）。
@@ -456,6 +483,7 @@ try {
 
 WSQ.EIX._info = null;
 WSQ.EIX._sprite = null;   // 列表精灵引用（Spriteset_Map.createCharacters 时注入）
+WSQ.EIX._pending = null;  // 待执行互动（v1.33：范围外确认 → 自动走过去再执行）
 
 // 调试日志（默认关闭；控制台执行 WSQ.EIX.debug = true 开启，用于排查触发链路）
 WSQ.EIX.debug = false;
@@ -469,19 +497,21 @@ WSQ.EIX.clear = function () {
 };
 
 // 重置互动信息；事件与互动列表均未变化时返回 false（避免无谓重绘）
-// clicked：点击事件格打开的菜单（玩家未移动时保持显示，见 isClickMenuAlive）
-WSQ.EIX.reset = function (event, syms, clicked) {
+// mode：false = 邻近触发（原行为）；true = 点击事件格打开（原 clicked）；"hover" = 悬停打开
+WSQ.EIX.reset = function (event, syms, mode) {
     var info = WSQ.EIX._info;
     if (info && info.event === event && info.syms.length === syms.length &&
         info.syms.every(function (s) { return syms.indexOf(s) >= 0; })) {
         return false;
     }
+    var clicked = mode === true;
     WSQ.EIX._info = {
         event: event,
         syms: syms,
         i: 0,        // 当前选中索引
         iDraw: -1,   // 当前已绘制索引
-        clicked: !!clicked,
+        clicked: clicked,
+        hover: mode === "hover",
         cx: clicked ? Math.round($gamePlayer.x) : 0,
         cy: clicked ? Math.round($gamePlayer.y) : 0
     };
@@ -490,20 +520,25 @@ WSQ.EIX.reset = function (event, syms, clicked) {
 
 // 每帧扫描：检测玩家脚下/周围（触发范围内）的带标签事件，维护互动信息
 // 「忽略朝向限制」开启时用四方向扫描，否则保持面向扫描（默认）
+// v1.33：悬停优先——鼠标悬停在带标签事件贴图上时，无论玩家位置如何都显示该事件的列表
 WSQ.EIX.scan = function () {
-    var e = WSQ.EIX.getEventHere([0, 1, 2]);
+    var e = WSQ.EIX.getHoverEvent();
+    var fromHover = !!e;
     if (!e) {
-        e = WSQ.EIX.bool("ignoreFacing", false)
-            ? WSQ.EIX.getEventNearby([0, 1, 2])
-            : WSQ.EIX.getEventThere([0, 1, 2]);
+        e = WSQ.EIX.getEventHere([0, 1, 2]);
+        if (!e) {
+            e = WSQ.EIX.bool("ignoreFacing", false)
+                ? WSQ.EIX.getEventNearby([0, 1, 2])
+                : WSQ.EIX.getEventThere([0, 1, 2]);
+        }
     }
     if (e) {
         var syms = WSQ.EIX.extractSyms(e);
-        WSQ.EIX.reset(e, syms);
+        WSQ.EIX.reset(e, syms, fromHover ? "hover" : false);
         WSQ.EIX.log("scan 命中事件#" + e._id + " 于 (" + e._x + "," + e._y + ") 玩家 (" +
-            $gamePlayer.x + "," + $gamePlayer.y + ")");
+            $gamePlayer.x + "," + $gamePlayer.y + ")" + (fromHover ? " [悬停]" : ""));
         WSQ.EIX.nextSym();
-    } else if (!WSQ.EIX.isClickMenuAlive()) {
+    } else if (!WSQ.EIX.isClickMenuAlive() && !WSQ.EIX.isHoverAlive()) {
         WSQ.EIX.clear();
         WSQ.EIX.log("scan 未命中：玩家 (" + $gamePlayer.x + "," + $gamePlayer.y + ") 面向 " +
             $gamePlayer.direction() + " halfMove=" + WSQ.EIX.isHalfMoveMode());
@@ -518,6 +553,62 @@ WSQ.EIX.isClickMenuAlive = function () {
     if (info.event._erased) return false;
     if (Math.round($gamePlayer.x) !== info.cx || Math.round($gamePlayer.y) !== info.cy) return false;
     return true;
+};
+
+//=============================================================================
+// 悬停检测（v1.33，EIW 式精灵贴图框架命中）
+//=============================================================================
+
+// 悬停检测：返回鼠标落点下第一个带互动标签的事件（无则 null）。
+// 参考 GF_4_EventInfoWindow 的 texture.frame + 锚点矩形方案，改用
+// worldTransform 逆变换求精灵局部坐标，天然兼容镜头位移/缩放。
+WSQ.EIX.getHoverEvent = function () {
+    if (!WSQ.EIX.bool("hoverEnabled", true)) return null;
+    if (TouchInput.x <= 0 && TouchInput.y <= 0) return null;   // 鼠标未移动过（初始 0,0）
+    var scene = SceneManager._scene;
+    if (!scene || !(scene instanceof Scene_Map) || !scene.isActive()) return null;
+    if ($gameMap.isEventRunning() || $gameMessage.isBusy()) return null;
+    if (!$gamePlayer.canMove()) return null;
+    var spriteset = scene._spriteset;
+    if (!spriteset || !spriteset._characterSprites) return null;
+    var sprites = spriteset._characterSprites;
+    for (var i = 0; i < sprites.length; i++) {
+        var sp = sprites[i];
+        if (!sp || !sp._character || !(sp._character instanceof Game_Event)) continue;
+        if (!sp.worldVisible) continue;
+        if (!WSQ.EIX.isTouchInSpriteFrame(sp)) continue;
+        var ev = sp._character;
+        if (ev._erased) continue;
+        // 屏幕外事件不响应悬停（列表会被边缘回拉贴在屏幕边，观感异常）
+        if (ev.screenX() < -64 || ev.screenX() > Graphics.width + 64 ||
+            ev.screenY() < -64 || ev.screenY() > Graphics.height + 64) continue;
+        if (WSQ.EIX.extractSyms(ev).length > 0) return ev;
+    }
+    return null;
+};
+
+// 触摸点是否落在事件精灵的贴图框架内：
+// texture.frame 为贴图源矩形（宽高 = 屏幕绘制尺寸，贴图未就绪时为 0 跳过），
+// 精灵原点 = screenX/screenY，按锚点缩进得到屏幕矩形，含镜像/缩放。
+WSQ.EIX.isTouchInSpriteFrame = function (sp) {
+    var frame = sp.texture && sp.texture.frame;
+    if (!frame || frame.width <= 0 || frame.height <= 0) return false;
+    var local = sp.worldTransform.applyInverse(new Point(TouchInput.x, TouchInput.y));
+    var w = frame.width * Math.abs(sp.scale.x);
+    var h = frame.height * Math.abs(sp.scale.y);
+    var x0 = -w * sp.anchor.x;
+    var y0 = -h * sp.anchor.y;
+    return local.x >= x0 && local.x <= x0 + w && local.y >= y0 && local.y <= y0 + h;
+};
+
+// 悬停列表保持条件：鼠标仍在该事件贴图上，或已移到列表位图上
+// （防止"移到列表上准备点击"的瞬间列表消失）
+WSQ.EIX.isHoverAlive = function () {
+    var info = WSQ.EIX._info;
+    if (!info || !info.hover) return false;
+    if (info.event._erased) return false;
+    if (WSQ.EIX.isTouchOnList()) return true;
+    return WSQ.EIX.getHoverEvent() === info.event;
 };
 
 // 切换选中项（dir = ±1；SHIFT 键与鼠标滚轮共用）
@@ -548,7 +639,9 @@ WSQ.EIX.onWheel = function (delta) {
     return true;
 };
 
-// 执行当前互动；成功处理返回 true（阻止引擎默认触发）
+// 执行当前互动；成功处理返回 true（阻止引擎默认触发）。
+// v1.33：玩家不在该事件触发范围内时（悬停打开的远处列表），不直接执行——
+// 记录待执行互动并自动走向事件，进入触发范围后执行（见 processPending）。
 WSQ.EIX.executeCurrent = function () {
     var info = WSQ.EIX._info;
     if (!info || !info.event) {
@@ -563,6 +656,17 @@ WSQ.EIX.executeCurrent = function () {
     var syms = info.syms || [];
     var sym = syms[info.i];
     WSQ.EIX.clear();
+    var px = WSQ.EIX.playerX();
+    var py = WSQ.EIX.playerY();
+    var inRange = WSQ.EIX.distance(e._x, e._y, px, py) <= Math.max(1, WSQ.EIX.rangeOf(e)) ||
+        WSQ.EIX.inExpansionArea(e, $gamePlayer.x, $gamePlayer.y);
+    if (!inRange) {
+        if (sym) {
+            WSQ.EIX.beginPending(e, sym);
+            return true;
+        }
+        return false;
+    }
     if (syms.length === 0) {
         e.start();
     } else {
@@ -570,6 +674,83 @@ WSQ.EIX.executeCurrent = function () {
     }
     $gameMap.setupStartingEvent();
     return true;
+};
+
+//=============================================================================
+// 待执行互动（v1.33：范围外确认 → 自动走过去再执行）
+//=============================================================================
+
+WSQ.EIX._pending = null;   // {event, sym, mapId, block}
+
+// 记录待执行互动：设置触摸目的地为事件格，复用引擎直线移动走过去
+WSQ.EIX.beginPending = function (event, sym) {
+    if (!event || event._erased || !sym) return;
+    WSQ.EIX._pending = { event: event, sym: sym, mapId: $gameMap.mapId(), block: 0 };
+    $gameTemp.setDestination(Math.floor(event._x), Math.floor(event._y));
+    WSQ.EIX.log("beginPending → 事件#" + event._id + " 互动「" + sym + "」");
+};
+
+// 取消待执行互动（清除目的地，玩家停在原地）
+WSQ.EIX.cancelPending = function () {
+    if (!WSQ.EIX._pending) return;
+    WSQ.EIX._pending = null;
+    $gameTemp.clearDestination();
+    WSQ.EIX.log("pending 已取消");
+};
+
+// 每帧判定（挂 updateNonmoving）：到达触发范围 → 面向事件并启动所选互动。
+// 返回 true = 已执行（调用方跳过本帧 scan）。
+WSQ.EIX.processPending = function (player) {
+    var p = WSQ.EIX._pending;
+    if (!p) return false;
+    var e = p.event;
+    if (e._erased || $gameMap.mapId() !== p.mapId) {
+        WSQ.EIX._pending = null;
+        return false;
+    }
+    if ($gameMap.isEventRunning()) return false;   // 其他事件执行中，暂缓判定
+    var px = WSQ.EIX.playerX();
+    var py = WSQ.EIX.playerY();
+    if (WSQ.EIX.distance(e._x, e._y, px, py) <= Math.max(1, WSQ.EIX.rangeOf(e)) ||
+        WSQ.EIX.inExpansionArea(e, $gamePlayer.x, $gamePlayer.y)) {
+        WSQ.EIX._pending = null;
+        player.turnTowardCharacter(e);
+        e.startEx(p.sym);
+        $gameMap.setupStartingEvent();
+        WSQ.EIX.log("pending 到达 → 执行事件#" + e._id + "「" + p.sym + "」");
+        return true;
+    }
+    // 目的地失效（被其他逻辑清除）→ 取消
+    if (!$gameTemp.isDestinationValid()) {
+        WSQ.EIX._pending = null;
+        return false;
+    }
+    return false;
+};
+
+// 每帧阻挡检测（挂 moveByInput）：玩家被挡住原地滞留超过阈值时，用 MZ 原版寻路
+// （Game_Character.findDirectionTo，BFS，searchLimit 12 格）探测；无路可走则取消
+// 待执行互动并清除目的地，不会卡死。玩家按方向键立即接管并取消。
+WSQ.EIX.updatePendingWalk = function (player) {
+    var p = WSQ.EIX._pending;
+    if (!p) return;
+    if (!$gameTemp.isDestinationValid()) return;
+    if (Input.dir4 !== 0) {
+        WSQ.EIX._pending = null;
+        return;
+    }
+    if (player.isMoving()) {
+        p.block = 0;
+        return;
+    }
+    p.block++;
+    if (p.block >= 24) {
+        p.block = 0;
+        var dir = player.findDirectionTo(Math.floor(p.event._x), Math.floor(p.event._y));
+        if (!dir) {
+            WSQ.EIX.cancelPending();
+        }
+    }
 };
 
 // 脚本接口：触发指定事件的互动（并行执行）
@@ -1065,23 +1246,40 @@ WSQ.EIX.alpha = function (a255) {
     return (v / 255).toFixed(3);
 };
 
-// 九宫格绘制窗口皮肤：内部实心暗板 + 边框九宫格。
-// 说明：项目 Window.png 的 (0,0,95,95) 区域是编辑器样式（网格+调色板）而非暗色填充，
-//       故内部改用纯色暗板保证可靠填充；边框沿用引擎 Window._refreshFrame
-//       切片规格（源区 (96,0,96,96)，margin 24）。
+// 九宫格绘制窗口皮肤：本体(0,0,96,96) + 边框(96,0,96,96)，完全对齐引擎
+// Window._refreshBack / _refreshFrame 切片规格(margin=24)。
+// 默认 Window.png 左上 96×96 即深色窗体本体，右上 96×96 即边框九宫格。
+// 兜底暗板保留：自定义皮肤若把左上 96×96 做成透明（例如编辑器样式网格），
+// 仍由纯色 fillRect 提供可见底色，避免再次出现"只画边框不画背景"。
 WSQ.EIX.drawWindowSkin = function (bitmap, skin, w, h) {
     var m = 24;
-    // 内部实心暗板（半透明黑，与游戏窗口观感一致）
+    var sw = 96, sh = 96;
+    var dmw = Math.max(w - m * 2, 1);   // 边 / 中部目标长度(水平)
+    var dmh = Math.max(h - m * 2, 1);   // 边 / 中部目标长度(垂直)
+    // 1) 兜底暗板（应对自定义皮肤左上 96×96 为透明的极端情况）
     bitmap.fillRect(m, m, Math.max(w - m * 2, 1), Math.max(h - m * 2, 1), "rgba(0, 0, 0, 0.75)");
-    // 边框九宫格
-    bitmap.blt(skin, 96, 0, 24, 24, 0, 0, 24, 24);
-    bitmap.blt(skin, 168, 0, 24, 24, w - 24, 0, 24, 24);
-    bitmap.blt(skin, 96, 72, 24, 24, 0, h - 24, 24, 24);
-    bitmap.blt(skin, 168, 72, 24, 24, w - 24, h - 24, 24, 24);
-    bitmap.blt(skin, 120, 0, 48, 24, m, 0, w - 48, 24);
-    bitmap.blt(skin, 120, 72, 48, 24, m, h - 24, w - 48, 24);
-    bitmap.blt(skin, 96, 24, 24, 48, 0, m, 24, h - 48);
-    bitmap.blt(skin, 168, 24, 24, 48, w - 24, m, 24, h - 48);
+    // 2) 9-slice 皮肤左上 96×96 = 窗体本体
+    // 四角（不缩放）
+    bitmap.blt(skin, 0, 0, m, m, 0, 0, m, m);
+    bitmap.blt(skin, sw - m, 0, m, m, w - m, 0, m, m);
+    bitmap.blt(skin, 0, sh - m, m, m, 0, h - m, m, m);
+    bitmap.blt(skin, sw - m, sh - m, m, m, w - m, h - m, m, m);
+    // 四边（单向拉伸；长度按 dmw/dmh clamp 后必为正）
+    bitmap.blt(skin, m, 0, sw - m * 2, m, m, 0, dmw, m);
+    bitmap.blt(skin, m, sh - m, sw - m * 2, m, m, h - m, dmw, m);
+    bitmap.blt(skin, 0, m, m, sh - m * 2, 0, m, m, dmh);
+    bitmap.blt(skin, sw - m, m, m, sh - m * 2, w - m, m, m, dmh);
+    // 中部（双向拉伸）
+    bitmap.blt(skin, m, m, sw - m * 2, sh - m * 2, m, m, dmw, dmh);
+    // 3) 9-slice 皮肤右上 96×96 = 边框（引擎 Window._refreshFrame 同款 8 片，无中心）
+    bitmap.blt(skin, 96, 0, m, m, 0, 0, m, m);
+    bitmap.blt(skin, 96 + sw - m, 0, m, m, w - m, 0, m, m);
+    bitmap.blt(skin, 96, sh - m, m, m, 0, h - m, m, m);
+    bitmap.blt(skin, 96 + sw - m, sh - m, m, m, w - m, h - m, m, m);
+    bitmap.blt(skin, 96 + m, 0, sw - m * 2, m, m, 0, dmw, m);
+    bitmap.blt(skin, 96 + m, sh - m, sw - m * 2, m, m, h - m, dmw, m);
+    bitmap.blt(skin, 96, m, m, sh - m * 2, 0, m, m, dmh);
+    bitmap.blt(skin, 96 + sw - m, m, m, sh - m * 2, w - m, m, m, dmh);
 };
 
 // 绘制图标（enabled 控制透明度；尺寸/列数跟随 ImageManager 与 IconSet 实际尺寸）
@@ -1376,6 +1574,10 @@ Scene_Map.prototype.processMapTouch = function () {
         }
         return;
     }
+    // 3. 玩家重新点击地图其他位置 → 取消待执行互动（改道走新目的地）
+    if (TouchInput.isTriggered()) {
+        WSQ.EIX.cancelPending();
+    }
     return _WSQ_EIX_Scene_Map_processMapTouch.apply(this, arguments);
 };
 
@@ -1397,6 +1599,8 @@ Game_Player.prototype.moveByInput = function () {
         $gameTemp.clearDestination();
         return;
     }
+    // 待执行互动（悬停确认）的行走阻挡检测：无路可走自动取消，不会卡死
+    WSQ.EIX.updatePendingWalk(this);
     return _WSQ_EIX_Game_Player_moveByInput.apply(this, arguments);
 };
 
@@ -1417,6 +1621,10 @@ document.addEventListener("wheel", function (e) {
 
 var _WSQ_EIX_Game_Player_updateNonmoving = Game_Player.prototype.updateNonmoving;
 Game_Player.prototype.updateNonmoving = function (wasMoving, sceneActive) {
+    // 待执行互动：到达触发范围即面向事件执行所选互动（本帧跳过 scan，避免重复开列表）
+    if (WSQ.EIX._pending && WSQ.EIX.processPending(this)) {
+        return _WSQ_EIX_Game_Player_updateNonmoving.apply(this, arguments);
+    }
     if (!$gameMap.isEventRunning()) {
         WSQ.EIX.scan();
     }
@@ -1575,6 +1783,7 @@ Game_Interpreter.prototype.eventInteractFinish = function () {
 
 var _WSQ_EIX_Spriteset_Map_createCharacters = Spriteset_Map.prototype.createCharacters;
 Spriteset_Map.prototype.createCharacters = function () {
+    WSQ.EIX.cancelPending();   // 切换地图场景 → 清掉跨图的待执行互动
     _WSQ_EIX_Spriteset_Map_createCharacters.call(this);
     this._wsqEIXSprite = new Sprite();
     this._wsqEIXSprite.z = 500;
@@ -1594,6 +1803,7 @@ Spriteset_Map.prototype.update = function () {
 var _WSQ_EIX_Spriteset_Map_destroy = Spriteset_Map.prototype.destroy;
 Spriteset_Map.prototype.destroy = function (options) {
     WSQ.EIX.clear();
+    WSQ.EIX.cancelPending();
     WSQ.EIX._sprite = null;
     if (this._wsqEIXSprite) {
         // 先摘除再销毁：_wsqEIXSprite 挂在 _tilemap 上，若不 removeChild，

@@ -8,7 +8,7 @@ Imported.WSQ_Achievement = true;
 
 var WSQ = WSQ || {};
 WSQ.ACH = WSQ.ACH || {};
-WSQ.ACH.version = 1.15;
+WSQ.ACH.version = 1.16;
 WSQ.ACH.pluginName = document.currentScript.src.match(/([^\/]+)\.js/)[1];
 
 if (!Imported.GF_1_CoreOfSeniorGauge) {
@@ -19,7 +19,7 @@ if (!Imported.GF_1_CoreOfSeniorGauge) {
 /*:
  * @target MZ
  * @author WSQ
- * @plugindesc [v1.15]        系统 - 成就系统（GF适配版，脱离DM_Common，支持JSON外部配置）
+ * @plugindesc [v1.16]        系统 - 成就系统（GF适配版，脱离DM_Common，支持JSON外部配置）
  * @base GF_0_CoreOfGame
  * @orderAfter GF_0_CoreOfGame
  * @base GF_1_CoreOfSpriteUI
@@ -37,7 +37,7 @@ if (!Imported.GF_1_CoreOfSeniorGauge) {
  * 成就系统（WSQ_Achievement）
  * ============================================================================
  * 基于 DM_Achievement 的功能重写，脱离 DM_Common 依赖，全面适配 GF 插件体系。
- * - UI 全面重构：取消信息窗口，列表项两行布局（图标+名称 / 描述+奖励右对齐）
+ * - UI 全面重构：取消信息窗口，列表项多行布局（图标+名称 / 描述可折行 + 奖励右对齐）
  * - 分类系统：取消按完成情况筛选，改为插件参数自由配置的成就分类
  * - 弹窗提示：使用 GF_3_ToastSystem（ToastManager.addText）
  * - 窗口管线：全部走 GF 的 processInitParam，支持窗口移动动画与皮肤
@@ -125,6 +125,26 @@ if (!Imported.GF_1_CoreOfSeniorGauge) {
  *   某条成就没有配置「成就大图标」时：
  *     - 「无图时放大图标集」开启 → 把该成就的「成就图标」放大到大图标尺寸绘制；
  *     - 关闭 → 该处留空，但名称与描述依然保持偏移，列表对齐不会错乱。
+ *
+ * ============================================================================
+ * 成就描述行数（自适应行高）
+ * ============================================================================
+ * 参数组「── 成就描述行数 ──」控制成就描述在列表项中最多显示几行。
+ *
+ * - 自动折行：描述按该行的实际可用宽度折行。可用宽度 = 项目内容宽度 - 右侧奖励摘要
+ *   占用的区域（奖励摘要宽度上限为该行宽度的 55%），因此折行不会与奖励摘要重叠。
+ * - 自适应行高：描述只需一行时，列表项保持原来的两行紧凑外观；
+ *   描述折成两行时，仅该项目自动变高（名称行下方多出一行描述），其余项目不受影响。
+ * - 截断提示：超过「描述最大行数」的内容会被截断，由「超出显示省略号」决定是否在
+ *   最后一行末尾补一个「…」。
+ * - 强制换行：描述文本里的回车换行会强制断行，并同样受「描述最大行数」限制。
+ * - 项目背景：窗口核心的「选项背景」贴图会按项目实际高度分别生成，不会被纵向拉伸变形。
+ *
+ *   ┌────────────────────────────────────────────┐
+ *   │ [图标] 成就名称            进度 / 已完成      │ ← 名称行（固定一行）
+ *   │ 成就描述第一行……            奖励摘要右对齐     │ ← 描述行 1
+ *   │ 成就描述第二行……                            │ ← 描述行 2（仅长描述出现）
+ *   └────────────────────────────────────────────┘
  *
  * ============================================================================
  * 前置需求
@@ -623,6 +643,27 @@ if (!Imported.GF_1_CoreOfSeniorGauge) {
  * @min 40
  * @desc 高级参数条在名称行右侧占用的水平宽度（像素）。宽度不足时名称自动缩短避让；过宽可能挤压描述行或溢出。
  * @default 180
+ *
+ * @param descGroup
+ * @text ── 成就描述行数 ──
+ *
+ * @param descMaxLines
+ * @parent descGroup
+ * @text 描述最大行数
+ * @type number
+ * @min 1
+ * @max 4
+ * @desc 成就描述在列表项中最多显示的文本行数（1~4）。描述超宽时按可用宽度自动折行；折行后仍超出该行数的部分会被截断。默认 2 行。
+ * @default 2
+ *
+ * @param descEllipsis
+ * @parent descGroup
+ * @text 超出显示省略号
+ * @type boolean
+ * @on 显示…
+ * @off 不显示
+ * @desc 描述因超出「描述最大行数」被截断时，是否在最后一行末尾追加「…」；关闭则直接截断不加提示。
+ * @default true
  *
  */
 
@@ -1517,6 +1558,116 @@ WSQ.ACH.bigIconSpacing = function () {
 
 // 大图标加载：直接复用 GF 的 ImageManager.loadCustomBitmap(folder/filename)，
 // 其入参为相对 img/ 的路径（如 UI_Menu/moon02），与「设置窗口贴图」的参数样式一致。
+
+// ============================================================================
+// 成就描述折行工具（自适应行高）
+// ============================================================================
+// 描述最大行数（1~4），非法值回退 2
+WSQ.ACH.descMaxLines = function () {
+    const n = WSQ.ACH.numParam('descMaxLines', 2);
+    return Math.min(4, Math.max(1, Math.floor(n)));
+};
+
+// 描述被截断时末行追加的省略号（关闭时返回空串）
+WSQ.ACH.descEllipsisText = function () {
+    return WSQ.Param.ACH.descEllipsis === false ? "" : "…";
+};
+
+// 把文本拆成「控制符 / 单字」令牌数组：控制符（\C[3]、\I[5]、\V[1]、\|\! 等）作为一个整体，
+// 折行时不会被从中间切断（否则会破坏控制符、导致测量与绘制异常）。
+WSQ.ACH.splitTextTokens = function (text) {
+    const s = String(text == null ? "" : text);
+    const tokens = [];
+    let i = 0;
+    while (i < s.length) {
+        const ch = s[i];
+        if (ch === "\\" && i + 1 < s.length) {
+            if (/[A-Za-z]/.test(s[i + 1])) {
+                // 形如 \C[3] / \I[12]：连续字母 + 可选 [参数]
+                let j = i + 1;
+                while (j < s.length && /[A-Za-z]/.test(s[j])) j++;
+                if (s[j] === "[") {
+                    const end = s.indexOf("]", j);
+                    j = end >= 0 ? end + 1 : s.length;
+                }
+                tokens.push(s.slice(i, j));
+                i = j;
+                continue;
+            }
+            tokens.push(s.slice(i, i + 2));
+            i += 2;
+            continue;
+        }
+        tokens.push(ch);
+        i += 1;
+    }
+    return tokens;
+};
+
+// 令牌是否为控制符（折行裁剪时不能被移除，避免控制符残缺）
+WSQ.ACH.isControlToken = function (token) {
+    return typeof token === "string" && token.length > 1 && token.charAt(0) === "\\";
+};
+
+// 按宽度折行：measure 为测量函数（入参为待测文本，返回像素宽度）。
+// 返回 { lines: [每行文本…], truncated: 是否因超出 maxLines 被截断 }。
+// 说明：需要测量「候选整行」而不是单字宽度相加，因为控制符（如 \V[n] 变量替换、
+// \I[n] 图标）的实际占宽只有在整串中才能被文本引擎正确解析。
+WSQ.ACH.wrapTextToLines = function (text, maxWidth, maxLines, measure, ellipsis) {
+    const result = { lines: [], truncated: false };
+    const s = String(text == null ? "" : text);
+    if (s === "") return result;
+    const limit = Math.max(1, Math.floor(maxLines) || 1);
+    const width = Math.max(1, Math.floor(maxWidth) || 1);
+
+    let lines = [];
+    // 描述中的回车换行视为强制断行
+    const paragraphs = s.split(/\r\n|\r|\n/);
+    for (let p = 0; p < paragraphs.length; p++) {
+        const para = paragraphs[p];
+        if (para === "") {
+            lines.push("");
+            continue;
+        }
+        const tokens = WSQ.ACH.splitTextTokens(para);
+        let line = "";
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
+            if (line !== "" && measure(line + token) > width) {
+                lines.push(line);
+                line = token;
+            } else {
+                line += token;
+            }
+        }
+        lines.push(line);
+    }
+
+    if (lines.length > limit) {
+        lines = lines.slice(0, limit);
+        result.truncated = true;
+    }
+
+    if (result.truncated && ellipsis) {
+        // 末行补省略号：从后往前裁掉可见字符，直到「内容 + 省略号」放得下
+        const tokens = WSQ.ACH.splitTextTokens(lines[limit - 1]);
+        while (tokens.length > 0 && measure(tokens.join("") + ellipsis) > width) {
+            let removed = false;
+            for (let i = tokens.length - 1; i >= 0; i--) {
+                if (!WSQ.ACH.isControlToken(tokens[i])) {
+                    tokens.splice(i, 1);
+                    removed = true;
+                    break;
+                }
+            }
+            if (!removed) break;   // 只剩控制符，不再裁
+        }
+        lines[limit - 1] = tokens.join("") + ellipsis;
+    }
+
+    result.lines = lines;
+    return result;
+};
 
 // ============================================================================
 // 预处理成就规则：生成条件函数 & 奖励函数 & 依赖图
@@ -2422,23 +2573,256 @@ class Window_AchievementList extends Window_Selectable {
         }
     }
 
-    // 两行文字（名称行 + 描述行）的总高度
-    textBlockHeight() {
+    // 名称行 + N 行描述的总高度（N 默认 1，长描述可折成多行 → 自适应行高）
+    textBlockHeight(descLines) {
+        const lines = Math.max(1, Math.floor(Number(descLines)) || 1);
         const lh = this.lineHeight();
-        const rowSpace = Number(this._windowSet.RowSpace) || 5;
-        return lh * 2 + rowSpace;
+        return lh * (1 + lines) + this._achRowSpace();
     }
 
-    // 项目内容区高度：大图标样式下，图标比两行文字高时由图标撑开
-    contentBlockHeight() {
-        const textH = this.textBlockHeight();
-        if (!WSQ.ACH.isBigIconStyle()) return textH;
-        return Math.max(textH, WSQ.ACH.bigIconSize());
+    // 项目内容区高度：大图标样式下，图标比文字块高时由图标撑开
+    contentBlockHeight(textH) {
+        const h = textH || this.textBlockHeight(1);
+        if (!WSQ.ACH.isBigIconStyle()) return h;
+        return Math.max(h, WSQ.ACH.bigIconSize());
     }
 
-    // 每项两行：图标+名称一行，描述+奖励一行（含上下内边距，确保不超出不重叠）
-    itemHeight() {
-        return this.contentBlockHeight() + this.itemPadding() * 2;
+    // 行间距参数（名称行与描述行之间、以及项目之间的额外留白）
+    _achRowSpace() {
+        return Number(this._windowSet.RowSpace) || 5;
+    }
+
+    // 单个项目的基准高度（描述恰好一行时的高度，与旧版完全一致）
+    _achBaseItemHeight() {
+        return this.contentBlockHeight(this.textBlockHeight(1)) + this.itemPadding() * 2;
+    }
+
+    // 单个项目的实际高度（按该项描述折行后的行数撑开）
+    _achItemHeightAt(index) {
+        return this.contentBlockHeight(this.textBlockHeight(this._achItemDescLines(index))) + this.itemPadding() * 2;
+    }
+
+    // 某项的描述行数（至少保留 1 行，与旧版"描述行始终占位"的表现一致）
+    _achItemDescLines(index) {
+        const layout = this._achLayoutFor(index);
+        if (!layout) return 1;
+        return Math.max(1, layout.lines.length);
+    }
+
+    _achLayoutFor(index) {
+        return (this._achLayouts && this._achLayouts[index]) || null;
+    }
+
+    // 预计算每项的描述折行与宽度：几何（项目高度/滚动）与绘制共用同一份结果，
+    // 避免在 itemRect（每帧可能被命中检测调用）里反复做文本测量。
+    _buildItemLayouts() {
+        const rules = this._data || [];
+        this._achLayouts = [];
+        this._achRowHeights = [];
+        this._achRowTops = [0];
+        if (!this.contents) return;
+        const pad = this.itemPadding();
+        const itemW = this.itemWidth() - this.colSpacing();
+        const innerW = Math.max(itemW - pad * 2, 1);
+        const bigStyle = WSQ.ACH.isBigIconStyle();
+        const textW = bigStyle
+            ? Math.max(innerW - WSQ.ACH.bigIconSize() - WSQ.ACH.bigIconSpacing(), 1)
+            : innerW;
+        const maxLines = WSQ.ACH.descMaxLines();
+        const ellipsis = WSQ.ACH.descEllipsisText();
+        const stats = $gameSystem ? $gameSystem._achievementStats : {};
+        const measure = (t) => this.textWidthEx(t);
+        this.resetFontSettings();
+        for (let i = 0; i < rules.length; i++) {
+            const rule = rules[i];
+            // 奖励摘要占用描述行右侧区域（宽度上限为描述行宽度的 55%），折行宽度需扣除
+            const summary = String(WSQ.ACH.buildRewardSummary(rule, stats) || "");
+            const summaryW = this.textWidthEx(summary);
+            const reserveW = Math.min(textW * 0.55, Math.max(summaryW + 12, 0));
+            const descW = Math.max(textW - reserveW, 1);
+            const desc = String(rule.desc || "");
+            let lines = [];
+            let truncated = false;
+            if (desc) {
+                // 快速路径：单行且放得下时无需做逐字折行
+                if (desc.indexOf("\n") < 0 && measure(desc) <= descW) {
+                    lines = [desc];
+                } else {
+                    const wrapped = WSQ.ACH.wrapTextToLines(desc, descW, maxLines, measure, ellipsis);
+                    lines = wrapped.lines;
+                    truncated = wrapped.truncated;
+                }
+            }
+            this._achLayouts[i] = {
+                summary: summary,
+                summaryW: summaryW,
+                reserveW: reserveW,
+                descW: descW,
+                lines: lines,
+                truncated: truncated
+            };
+        }
+        this._buildRowMetrics();
+    }
+
+    // 行高与前缀和：多列时一行的高度取该行项目的最大值（不同项目高度可能不同）
+    _buildRowMetrics() {
+        const maxCols = Math.max(1, this.maxCols());
+        const count = (this._data || []).length;
+        const rowCount = Math.max(Math.ceil(count / maxCols), 1);
+        const heights = [];
+        const tops = [0];
+        for (let r = 0; r < rowCount; r++) {
+            let h = 0;
+            for (let c = 0; c < maxCols; c++) {
+                const index = r * maxCols + c;
+                if (index >= count) break;
+                h = Math.max(h, this._achItemHeightAt(index));
+            }
+            if (h <= 0) h = this._achBaseItemHeight();
+            heights[r] = h;
+            tops[r + 1] = tops[r] + h;
+        }
+        this._achRowHeights = heights;
+        this._achRowTops = tops;
+    }
+
+    _achRowCount() {
+        return Math.max(Math.ceil((this._data || []).length / Math.max(1, this.maxCols())), 1);
+    }
+
+    // 第 row 行的顶部 y（已含项目内边距，未减去滚动基准），越界时返回内容总高
+    _achRowTop(row) {
+        const tops = this._achRowTops;
+        const r = Math.max(0, Math.floor(Number(row)) || 0);
+        if (!tops || tops.length < 2) return r * this._achBaseItemHeight();
+        return tops[Math.min(r, tops.length - 1)];
+    }
+
+    _achRowHeight(row) {
+        const heights = this._achRowHeights;
+        const r = Math.max(0, Math.floor(Number(row)) || 0);
+        if (!heights || !heights.length) return this._achBaseItemHeight();
+        return heights[Math.min(r, heights.length - 1)] || this._achBaseItemHeight();
+    }
+
+    // ---- 纵向几何覆写：项目高度随描述行数变化后，RMMZ 基于「统一 itemHeight」的
+    // 位置计算（row * itemHeight）不再成立，故按「行高前缀和」重新实现。----
+
+    // 带 index 时返回该项实际高度；RMMZ 的无参调用（滚动分块/页行数等）返回基准高度
+    itemHeight(index) {
+        if (index === undefined || index === null || !this._achLayouts) {
+            return this._achBaseItemHeight();
+        }
+        return this._achItemHeightAt(index);
+    }
+
+    itemRect(index) {
+        const maxCols = Math.max(1, this.maxCols());
+        const itemWidth = this.itemWidth();
+        const colSpacing = this.colSpacing();
+        const rowSpacing = this.rowSpacing();
+        const col = index % maxCols;
+        const row = Math.floor(index / maxCols);
+        const x = col * itemWidth + colSpacing / 2 - this.scrollBaseX();
+        const y = this._achRowTop(row) + rowSpacing / 2 - this.scrollBaseY();
+        const width = itemWidth - colSpacing;
+        const height = Math.max(1, this._achRowHeight(row) - rowSpacing);
+        return new Rectangle(x, y, width, height);
+    }
+
+    // 内容位图高度：与基类语义一致（可视区高度 + 一个滚动分块）。
+    // 滚动分块取基准高度，故内容位图足够覆盖 origin 偏移下的整个可视区。
+    contentsHeight() {
+        return this.innerHeight + this._achBaseItemHeight();
+    }
+
+    overallHeight() {
+        const tops = this._achRowTops;
+        if (!tops || tops.length < 2) return this.maxRows() * this._achBaseItemHeight();
+        return tops[tops.length - 1];
+    }
+
+    // 一屏可容纳的行数（行高不等，按行顶累计判断）
+    maxPageRows() {
+        const innerH = this.innerHeight;
+        if (innerH <= 0) return 0;
+        const rows = this._achRowCount();
+        let n = 0;
+        for (let r = 0; r < rows; r++) {
+            if (this._achRowTop(r) < innerH) n++;
+            else break;
+        }
+        return Math.max(n, 1);
+    }
+
+    // 当前滚动位置所在的行（基类为 scrollY / itemHeight，行高不等时不再成立）
+    topRow() {
+        const y = this.scrollY();
+        const rows = this._achRowCount();
+        let row = 0;
+        for (let r = 0; r < rows; r++) {
+            if (this._achRowTop(r) <= y) row = r;
+            else break;
+        }
+        return row;
+    }
+
+    setTopRow(row) {
+        this.scrollTo(this.scrollX(), this._achRowTop(row));
+    }
+
+    // 可见项目数上限：从当前行起多留 2 行余量，供 drawAllItems / hitTest 使用
+    maxVisibleItems() {
+        return (this.maxPageRows() + 2) * Math.max(1, this.maxCols());
+    }
+
+    // 光标可见性：按行顶/行底计算，行高不等时不能再用 row * itemHeight
+    ensureCursorVisible(smooth) {
+        if (this._cursorAll) {
+            this.scrollTo(0, 0);
+            return;
+        }
+        if (this.innerHeight <= 0 || this.index() < 0) return;
+        const maxCols = Math.max(1, this.maxCols());
+        const row = Math.floor(this.index() / maxCols);
+        const scrollY = this.scrollY();
+        const itemTop = this._achRowTop(row);
+        const itemBottom = this._achRowTop(row + 1);
+        const scrollMin = itemBottom - this.innerHeight;
+        if (scrollY > itemTop) {
+            if (smooth) this.smoothScrollTo(0, itemTop);
+            else this.scrollTo(0, itemTop);
+        } else if (scrollY < scrollMin) {
+            if (smooth) this.smoothScrollTo(0, scrollMin);
+            else this.scrollTo(0, scrollMin);
+        }
+    }
+
+    // 翻页：按「行」滚动（行高不等，不能用 maxPageRows × itemHeight 换算像素）
+    cursorPagedown() {
+        const maxItems = this.maxItems();
+        if (maxItems <= 0) return;
+        const maxCols = Math.max(1, this.maxCols());
+        const pageRows = Math.max(1, this.maxPageRows());
+        const fromRow = this.topRow();
+        const lastRow = Math.max(0, this._achRowCount() - 1);
+        if (fromRow >= lastRow) return;
+        const toRow = Math.min(fromRow + pageRows, lastRow);
+        this.smoothScrollTo(this.scrollX(), this._achRowTop(toRow));
+        this.select(Math.min(this.index() + pageRows * maxCols, maxItems - 1));
+    }
+
+    cursorPageup() {
+        const maxItems = this.maxItems();
+        if (maxItems <= 0) return;
+        const maxCols = Math.max(1, this.maxCols());
+        const pageRows = Math.max(1, this.maxPageRows());
+        const fromRow = this.topRow();
+        if (fromRow <= 0) return;
+        const toRow = Math.max(0, fromRow - pageRows);
+        this.smoothScrollTo(this.scrollX(), this._achRowTop(toRow));
+        this.select(Math.max(this.index() - pageRows * maxCols, 0));
     }
 
     setCategory(symbol) {
@@ -2471,9 +2855,48 @@ class Window_AchievementList extends Window_Selectable {
     refresh() {
         this._disposeProgressGauges();
         this.makeItemList();
+        // 重建描述折行/项目高度缓存（列表内容、分类、统计数据变化时都需要重算）
+        this._buildItemLayouts();
+        this._clearSelectBackCache();
         // 清空背景层，避免列表变化/滚动后残留旧的渐变背景
         if (this.contentsBack) this.contentsBack.clear();
         super.refresh();
+    }
+
+    // 项目背景贴图按「项目实际高度」分别生成并缓存（同一高度只生成一次），
+    // 避免基类用第一项的尺寸生成后被纵向拉伸变形。
+    _clearSelectBackCache() {
+        if (!this._achSelectBackCache) return;
+        for (const k in this._achSelectBackCache) {
+            const b = this._achSelectBackCache[k];
+            if (b && typeof b.destroy === "function") b.destroy();
+        }
+        this._achSelectBackCache = {};
+    }
+
+    drawBackgroundRect(rect) {
+        const data = this._selectBackData;
+        if (!data || !data["draw_img"] || !this._selectBackBitmap) {
+            super.drawBackgroundRect(rect);
+            return;
+        }
+        if (data["draw_default"] && GF.COWU.Window_Selectable_drawBackgroundRect) {
+            GF.COWU.Window_Selectable_drawBackgroundRect.call(this, rect);
+        }
+        const key = Math.round(rect.height);
+        this._achSelectBackCache = this._achSelectBackCache || {};
+        let bitmap = this._achSelectBackCache[key];
+        if (!bitmap) {
+            const sizeRect = new Rectangle(0, 0, rect.width, rect.height);
+            bitmap = this.getBorderBitmap(
+                this._selectBackBitmap, sizeRect,
+                data["border_width"], data["border_type"], data["draw_back_center"]
+            );
+            this._achSelectBackCache[key] = bitmap;
+        }
+        if (bitmap) {
+            this.contentsBack.blt(bitmap, 0, 0, bitmap.width, bitmap.height, rect.x, rect.y, rect.width, rect.height);
+        }
     }
 
     // 绘制第一行渐变背景条（参照 GF_3_AlchemySystem 配方详情的标题背景条实现）
@@ -2658,11 +3081,12 @@ class Window_AchievementList extends Window_Selectable {
         const innerX = rect.x + pad;
         const innerY = rect.y + pad;
         const innerW = rect.width - pad * 2;
-        const textH = this.textBlockHeight();
-        const contentH = this.contentBlockHeight();
+        // 描述折行后的实际行数决定文字块高度（自适应行高：长描述的项目整体变高）
+        const textH = this.textBlockHeight(this._achItemDescLines(index));
+        const contentH = this.contentBlockHeight(textH);
 
         // 文字块起点：小图标样式即项目左上角；大图标样式向右偏移让出图标位置，
-        // 且当图标比两行文字高时，文字块在项目内垂直居中
+        // 且当图标比文字块高时，文字块在项目内垂直居中
         const bigStyle = WSQ.ACH.isBigIconStyle();
         let textX = innerX;
         let textW = innerW;
@@ -2816,21 +3240,25 @@ class Window_AchievementList extends Window_Selectable {
             }
         }
 
-        // 第二行：描述（左）+ 奖励摘要（右对齐）
-        const descY = textY + lh + rowSpace;
+        // 第二行起：描述（左，按需折行，最多「描述最大行数」行）+ 奖励摘要（描述首行右侧，右对齐）
         const stats = $gameSystem._achievementStats;
-        const summary = String(WSQ.ACH.buildRewardSummary(rule, stats) || "");
-        const summaryW = this.textWidthEx(summary);
-        const reserveW = Math.min(textW * 0.55, Math.max(summaryW + 12, 0));
-        const descW = Math.max(textW - reserveW, 1);
+        const layout = this._achLayoutFor(index);
+        const summary = layout ? layout.summary : String(WSQ.ACH.buildRewardSummary(rule, stats) || "");
+        const reserveW = layout ? layout.reserveW : Math.min(textW * 0.55, Math.max(this.textWidthEx(summary) + 12, 0));
+        const descW = layout ? layout.descW : Math.max(textW - reserveW, 1);
+        const rawDesc = String(rule.desc || "");
+        const descLines = (layout && layout.lines.length)
+            ? layout.lines
+            : (rawDesc ? [rawDesc] : []);
 
         this.changePaintOpacity(granted);
-        const desc = String(rule.desc || "");
-        if (desc) {
-            this.drawTextEx(desc, textX, descY, descW);
+        for (let i = 0; i < descLines.length; i++) {
+            const descY = textY + lh * (1 + i) + rowSpace;
+            this.drawTextEx(descLines[i], textX, descY, descW);
         }
         // 奖励右对齐：右侧区域起点 = textX + descW，宽度 = reserveW，GF 原生 align="right"
         if (summary) {
+            const descY = textY + lh + rowSpace;
             this.changePaintOpacity(true);
             this.resetTextColor();
             this.drawTextEx(summary, textX + descW, descY, reserveW, "right");
